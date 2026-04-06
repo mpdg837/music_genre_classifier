@@ -1,15 +1,12 @@
 from pathlib import Path
-import re
 import zipfile
 
+import gdown
 from loguru import logger
-import requests
-
-GOOGLE_DOWNLOAD_URL = "https://drive.google.com/uc?export=download"
 
 
 def ensure_dataset(
-    url: str,
+    file_id: str,
     dataset_dir: str | Path,
     temp_zip_path: str | Path,
     force_download: bool = False,
@@ -22,7 +19,7 @@ def ensure_dataset(
         return dataset_dir
 
     zip_path = download_google_drive_zip(
-        url=url,
+        file_id=file_id,
         output_path=temp_zip_path,
         force=force_download,
     )
@@ -40,33 +37,25 @@ def ensure_dataset(
     return dataset_dir
 
 
-def download_google_drive_zip(url: str, output_path: str | Path, chunk_size: int = 32768) -> Path:
+def download_google_drive_zip(
+    file_id: str,
+    output_path: str | Path,
+    force: bool = False,
+) -> Path:
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    file_id = _extract_google_drive_file_id(url)
+    if output_path.exists() and output_path.is_file() and output_path.stat().st_size > 0 and not force:
+        logger.info(f"Archive already exists at {output_path}, skipping download.")
+        return output_path
 
-    session = requests.Session()
-    base_url = GOOGLE_DOWNLOAD_URL
+    logger.info(f"Downloading archive to {output_path}")
+    gdown.download(id=file_id, output=str(output_path), quiet=False, fuzzy=True)
 
-    response = session.get(base_url, params={"id": file_id}, stream=True)
-    response.raise_for_status()
+    if not output_path.exists() or output_path.stat().st_size == 0:
+        raise RuntimeError(f"Download failed or produced an empty file: {output_path}")
 
-    token = _get_confirm_token(response)
-    if token:
-        response.close()
-        response = session.get(
-            base_url,
-            params={"id": file_id, "confirm": token},
-            stream=True,
-        )
-        response.raise_for_status()
-
-    _save_response_content(response, output_path, chunk_size=chunk_size)
-
-    if output_path.suffix.lower() != ".zip":
-        raise ValueError(f"Downloaded file does not end with .zip: {output_path}")
-
+    logger.info(f"Download finished: {output_path}")
     return output_path
 
 
@@ -95,34 +84,3 @@ def extract_zip_to_dir(
         zip_path.unlink(missing_ok=True)
 
     return dataset_dir
-
-
-def _extract_google_drive_file_id(url: str) -> str | None:
-    patterns = [
-        r"/file/d/([a-zA-Z0-9_-]+)",
-        r"[?&]id=([a-zA-Z0-9_-]+)",
-        r"/uc\?export=download&id=([a-zA-Z0-9_-]+)",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1)
-    return None
-
-
-def _get_confirm_token(response: requests.Response) -> str | None:
-    for key, value in response.cookies.items():
-        if key.startswith("download_warning"):
-            return value
-
-    match = re.search(r"confirm=([0-9A-Za-z_]+)", response.text)
-    return match.group(1) if match else None
-
-
-def _save_response_content(
-    response: requests.Response, destination: Path, chunk_size: int
-) -> None:
-    with destination.open("wb") as f:
-        for chunk in response.iter_content(chunk_size):
-            if chunk:
-                f.write(chunk)
