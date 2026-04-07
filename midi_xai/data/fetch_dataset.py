@@ -45,7 +45,12 @@ def download_google_drive_zip(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if output_path.exists() and output_path.is_file() and output_path.stat().st_size > 0 and not force:
+    if (
+        output_path.exists()
+        and output_path.is_file()
+        and output_path.stat().st_size > 0
+        and not force
+    ):
         logger.info(f"Archive already exists at {output_path}, skipping download.")
         return output_path
 

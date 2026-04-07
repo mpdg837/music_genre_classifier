@@ -1,3 +1,4 @@
+name: xmidi
 paths:
   dataset_dir: data/raw/xmidi
   processed_dir: data/processed/xmidi
