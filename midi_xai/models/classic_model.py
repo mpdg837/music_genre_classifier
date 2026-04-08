@@ -20,7 +20,9 @@ class ClassicModel:
         self.model = model
         self.imputer = imputer
         self.scaler = scaler
-        self.transform = FunctionTransformer(np.log1p, validate=False) if is_transform else None
+        self.transformer = (
+            FunctionTransformer(np.log1p, validate=False) if is_transform else None
+        )
 
     def _preprocess_fit(self, x: pd.DataFrame) -> np.ndarray:
         x_out = x
@@ -60,7 +62,9 @@ class ClassicModel:
         }
 
 
-def log_metrics(model: ClassicModel, X: pd.DataFrame, y: np.ndarray, prefix: str) -> None:
+def log_metrics(
+    model: ClassicModel, X: pd.DataFrame, y: np.ndarray, prefix: str
+) -> None:
     metrics = model.evaluate(X, y)
     wandb.log(
         {
