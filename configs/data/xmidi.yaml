@@ -9,3 +9,6 @@ download:
   file_id: 1qDkSH31x7jN8X-2RyzB9wuxGji4QxYyA
   force: false
   delete_zip: true
+
+test_size: 0.03
+random_state: 42

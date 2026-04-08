@@ -1,0 +1,17 @@
+_target_: midi_xai.models.classic_model.ClassicModel
+
+model:
+  _target_: sklearn.svm.SVC
+  kernel: rbf
+  C: 1.0
+  gamma: scale
+  class_weight: balanced
+
+imputer:
+  _target_: sklearn.impute.SimpleImputer
+  strategy: median
+
+scaler:
+  _target_: sklearn.preprocessing.RobustScaler
+
+is_transform: True

@@ -1,0 +1,17 @@
+_target_: midi_xai.models.classic_model.ClassicModel
+
+model:
+  _target_: sklearn.neural_network.MLPClassifier
+  hidden_layer_sizes: [128, 64]
+  max_iter: 500
+  random_state: 42
+  class_weight: balanced
+
+imputer:
+  _target_: sklearn.impute.SimpleImputer
+  strategy: median
+
+scaler:
+  _target_: sklearn.preprocessing.RobustScaler
+
+is_transform: True

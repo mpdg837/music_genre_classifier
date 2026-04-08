@@ -1,3 +1,4 @@
 defaults:
   - /data: xmidi
+  - /model/classic@model: logistic_regression
   - _self_
