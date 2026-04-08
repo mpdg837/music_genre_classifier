@@ -1,10 +1,12 @@
 from pathlib import Path
+import sys
 from typing import Any, Dict, Tuple
 
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
+from tqdm.auto import tqdm
 
 
 def build_label_mapping(metadata: pd.DataFrame) -> Dict[str, int]:
@@ -89,6 +91,47 @@ class MidiNoteMatrixDataset(Dataset):
         }
 
 
+def compute_piece_duration(onset: np.ndarray, duration: np.ndarray) -> float:
+    if len(onset) == 0:
+        return 0.0
+    note_end = onset + duration
+    return float(np.max(note_end) - np.min(onset))
+
+
+def compute_polyphony_features(
+    onset: np.ndarray, duration: np.ndarray
+) -> Tuple[float, float]:
+    if len(onset) == 0:
+        return 0.0, 0.0
+
+    note_end = onset + duration
+    events = []
+
+    for start, end in zip(onset, note_end):
+        events.append((float(start), 1))
+        events.append((float(end), -1))
+
+    events.sort(key=lambda x: (x[0], x[1]))
+
+    active = 0
+    max_polyphony = 0
+    weighted_polyphony = 0.0
+    prev_time = events[0][0]
+
+    for time, delta in events:
+        dt = time - prev_time
+        if dt > 0:
+            weighted_polyphony += active * dt
+        active += delta
+        max_polyphony = max(max_polyphony, active)
+        prev_time = time
+
+    piece_duration = compute_piece_duration(onset, duration)
+    avg_polyphony = weighted_polyphony / piece_duration if piece_duration > 0 else 0.0
+
+    return float(avg_polyphony), float(max_polyphony)
+
+
 def extract_note_features(arrays: Dict[str, np.ndarray]) -> Dict[str, float]:
     pitch = arrays["pitch"]
     onset = arrays["onset_sec"]
@@ -97,11 +140,24 @@ def extract_note_features(arrays: Dict[str, np.ndarray]) -> Dict[str, float]:
 
     features: Dict[str, float] = {}
 
-    features["n_notes"] = float(len(pitch))
+    n_notes = float(len(pitch))
+    piece_duration_sec = compute_piece_duration(onset, duration)
+    note_density = n_notes / piece_duration_sec if piece_duration_sec > 0 else 0.0
+    avg_polyphony, max_polyphony = compute_polyphony_features(onset, duration)
+
+    features["n_notes"] = n_notes
+    features["piece_duration_sec"] = piece_duration_sec
+    features["note_density"] = note_density
+    features["avg_polyphony"] = avg_polyphony
+    features["max_polyphony"] = max_polyphony
+
     features["pitch_mean"] = float(np.mean(pitch)) if len(pitch) else 0.0
     features["pitch_std"] = float(np.std(pitch)) if len(pitch) else 0.0
     features["pitch_min"] = float(np.min(pitch)) if len(pitch) else 0.0
     features["pitch_max"] = float(np.max(pitch)) if len(pitch) else 0.0
+    features["pitch_range"] = (
+        float(np.max(pitch) - np.min(pitch)) if len(pitch) else 0.0
+    )
 
     features["duration_mean"] = float(np.mean(duration)) if len(duration) else 0.0
     features["duration_std"] = float(np.std(duration)) if len(duration) else 0.0
@@ -139,12 +195,18 @@ def build_sklearn_dataset(
     rows = []
     y = []
 
-    for row in metadata.itertuples(index=False):
+    for row in tqdm(
+        metadata.itertuples(index=False),
+        desc="Building sklearn dataset...",
+        total=len(metadata),
+        file=sys.stdout,
+    ):
         sample_id = row.sample_id
         genre = row.genre
 
         arrays = load_note_arrays(Path(note_array_dir) / f"{sample_id}.npz")
         features = extract_note_features(arrays)
+
         rows.append(features)
         y.append(label_to_idx[genre])
 
