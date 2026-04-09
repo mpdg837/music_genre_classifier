@@ -1,4 +1,6 @@
 defaults:
   - /data: xmidi
-  - /model/classic@model: logistic_regression
+  - /model/classic@model: linear_svc
   - _self_
+
+save_weights_path: checkpoints/

@@ -1,15 +1,18 @@
-_target_: midi_xai.models.classic_model.ClassicModel
+name: linear_svc
 
-model:
-  _target_: sklearn.svm.LinearSVC
-  random_state: 42
-  class_weight: balanced
+instance:
+  _target_: midi_xai.models.classic_model.ClassicModel
 
-imputer:
-  _target_: sklearn.impute.SimpleImputer
-  strategy: median
+  model:
+    _target_: sklearn.svm.LinearSVC
+    random_state: 42
+    class_weight: balanced
 
-scaler:
-  _target_: sklearn.preprocessing.RobustScaler
+  imputer:
+    _target_: sklearn.impute.SimpleImputer
+    strategy: median
 
-is_transform: True
+  scaler:
+    _target_: sklearn.preprocessing.RobustScaler
+
+  is_transform: True

@@ -1,14 +1,17 @@
-_target_: midi_xai.models.classic_model.ClassicModel
+name: knn
 
-model:
-  _target_: sklearn.neighbors.KNeighborsClassifier
-  n_neighbors: 7
+instance:
+  _target_: midi_xai.models.classic_model.ClassicModel
 
-imputer:
-  _target_: sklearn.impute.SimpleImputer
-  strategy: median
+  model:
+    _target_: sklearn.neighbors.KNeighborsClassifier
+    n_neighbors: 7
 
-scaler:
-  _target_: sklearn.preprocessing.RobustScaler
+  imputer:
+    _target_: sklearn.impute.SimpleImputer
+    strategy: median
 
-is_transform: True
+  scaler:
+    _target_: sklearn.preprocessing.RobustScaler
+
+  is_transform: True

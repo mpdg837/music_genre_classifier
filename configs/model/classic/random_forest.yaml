@@ -1,14 +1,18 @@
-_target_: midi_xai.models.classic_model.ClassicModel
+name: random_forest
 
-model:
-  _target_: sklearn.ensemble.RandomForestClassifier
-  n_estimators: 300
-  random_state: 42
-  n_jobs: -1
-  class_weight: balanced
+instance:
 
-imputer:
-  _target_: sklearn.impute.SimpleImputer
-  strategy: median
+  _target_: midi_xai.models.classic_model.ClassicModel
 
-scaler: null
+  model:
+    _target_: sklearn.ensemble.RandomForestClassifier
+    n_estimators: 300
+    random_state: 42
+    n_jobs: -1
+    class_weight: balanced
+
+  imputer:
+    _target_: sklearn.impute.SimpleImputer
+    strategy: median
+
+  scaler: null

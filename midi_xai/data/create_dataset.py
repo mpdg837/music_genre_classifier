@@ -98,9 +98,7 @@ def compute_piece_duration(onset: np.ndarray, duration: np.ndarray) -> float:
     return float(np.max(note_end) - np.min(onset))
 
 
-def compute_polyphony_features(
-    onset: np.ndarray, duration: np.ndarray
-) -> Tuple[float, float]:
+def compute_polyphony_features(onset: np.ndarray, duration: np.ndarray) -> Tuple[float, float]:
     if len(onset) == 0:
         return 0.0, 0.0
 
@@ -155,9 +153,7 @@ def extract_note_features(arrays: Dict[str, np.ndarray]) -> Dict[str, float]:
     features["pitch_std"] = float(np.std(pitch)) if len(pitch) else 0.0
     features["pitch_min"] = float(np.min(pitch)) if len(pitch) else 0.0
     features["pitch_max"] = float(np.max(pitch)) if len(pitch) else 0.0
-    features["pitch_range"] = (
-        float(np.max(pitch) - np.min(pitch)) if len(pitch) else 0.0
-    )
+    features["pitch_range"] = float(np.max(pitch) - np.min(pitch)) if len(pitch) else 0.0
 
     features["duration_mean"] = float(np.mean(duration)) if len(duration) else 0.0
     features["duration_std"] = float(np.std(duration)) if len(duration) else 0.0

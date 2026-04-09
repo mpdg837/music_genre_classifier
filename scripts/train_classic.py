@@ -16,10 +16,14 @@ def main(cfg: DictConfig) -> None:
         "Running classic model training script with config:\n{}", OmegaConf.to_yaml(cfg)
     )
 
-    model = hydra.utils.instantiate(cfg.model)
+    model = hydra.utils.instantiate(cfg.model.instance)
 
     metadata_csv = Path(cfg.data.paths.labels_output_path)
     note_array_dir = Path(cfg.data.paths.processed_dir)
+
+    save_dir = Path(cfg.save_weights_path)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    save_path = save_dir / f"{cfg.model.name}.joblib"
 
     X, y, _ = build_sklearn_dataset(
         note_array_dir=note_array_dir, metadata_csv=metadata_csv
@@ -36,7 +40,7 @@ def main(cfg: DictConfig) -> None:
     with wandb.init(
         project="music-genre-xai",
         config={
-            "model_name": cfg.model.model._target_,
+            "model_name": cfg.model.name,
         },
     ):
 
@@ -47,6 +51,9 @@ def main(cfg: DictConfig) -> None:
         log_metrics(model, X_train, y_train, "train")
         logger.info("Evaluating validation metrics.")
         log_metrics(model, X_val, y_val, "val")
+
+        logger.info("Saving model to {}", save_path)
+        model.save(save_path)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
+from pathlib import Path
 from typing import Any, Dict, Self
 
+import joblib
 from loguru import logger
 import numpy as np
 import pandas as pd
@@ -20,9 +22,7 @@ class ClassicModel:
         self.model = model
         self.imputer = imputer
         self.scaler = scaler
-        self.transformer = (
-            FunctionTransformer(np.log1p, validate=False) if is_transform else None
-        )
+        self.transformer = FunctionTransformer(np.log1p, validate=False) if is_transform else None
 
     def _preprocess_fit(self, x: pd.DataFrame) -> np.ndarray:
         x_out = x
@@ -61,10 +61,17 @@ class ClassicModel:
             "report": classification_report(y, y_pred),
         }
 
+    def save(self, path: str | Path) -> None:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(self, path)
 
-def log_metrics(
-    model: ClassicModel, X: pd.DataFrame, y: np.ndarray, prefix: str
-) -> None:
+    @staticmethod
+    def load(path: str | Path) -> "ClassicModel":
+        return joblib.load(path)
+
+
+def log_metrics(model: ClassicModel, X: pd.DataFrame, y: np.ndarray, prefix: str) -> None:
     metrics = model.evaluate(X, y)
     wandb.log(
         {
