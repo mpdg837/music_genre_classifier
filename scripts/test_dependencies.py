@@ -79,6 +79,29 @@ def test_hydra_config_load() -> None:
     assert OmegaConf.is_config(cfg)
 
 
+def test_neural_models_compose_and_forward() -> None:
+    """Hydra neural_config + MuSeReNet and Transformer forward shapes."""
+    from pathlib import Path
+
+    import hydra
+    import torch
+    from hydra import compose, initialize_config_dir
+
+    cfg_dir = str(Path(__file__).resolve().parents[1] / "configs")
+    with initialize_config_dir(version_base=None, config_dir=cfg_dir):
+        for model_name in ("muserenet", "transformer"):
+            cfg = compose(config_name="neural_config", overrides=[f"model={model_name}"])
+            model = hydra.utils.instantiate(cfg.model.instance, num_classes=3).eval()
+            if model_name == "muserenet":
+                x = torch.randn(2, 128, 64)
+                logits = model(x)
+            else:
+                x = torch.randn(2, 32, 6)
+                mask = torch.ones(2, 32, dtype=torch.bool)
+                logits = model(x, mask)
+            assert logits.shape == (2, 3)
+
+
 def test_omegaconf_basic() -> None:
     """Check that OmegaConf can create a config object."""
     from omegaconf import OmegaConf
