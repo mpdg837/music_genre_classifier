@@ -20,20 +20,95 @@ def load_note_arrays(npz_path: Path) -> Dict[str, np.ndarray]:
 
 
 class MidiPianoRollDataset(Dataset):
-    def __init__(self, pianoroll_dir: Path, metadata_csv: Path):
+    def __init__(
+        self,
+        note_array_dir: Path,
+        metadata_csv: Path,
+        label_to_idx: Dict[str, int] | None = None,
+        frame_rate: float = 20.0,
+        max_time_steps: int = 1024,
+        pitch_min: int = 0,
+        n_pitches: int = 128,
+        random_crop: bool = False,
+    ):
         self.metadata = pd.read_csv(metadata_csv)
-        self.pianoroll_dir = pianoroll_dir
+        self.note_array_dir = note_array_dir
+        self.label_to_idx = label_to_idx or build_label_mapping(self.metadata)
+        self.frame_rate = frame_rate
+        self.max_time_steps = max_time_steps
+        self.pitch_min = pitch_min
+        self.n_pitches = n_pitches
+        self.random_crop = random_crop
 
     def __len__(self):
         return len(self.metadata)
 
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         row = self.metadata.iloc[idx]
-        pr = np.load(self.pianoroll_dir / f"{row['sample_id']}.npz")
-        x = torch.from_numpy(pr["pianoroll"]).float()
-        y = torch.tensor([row["genre"]], dtype=torch.long)
+        arrays = load_note_arrays(self.note_array_dir / f"{row['sample_id']}.npz")
 
-        return x, y
+        pianoroll = build_pianoroll_from_note_arrays(
+            arrays=arrays,
+            frame_rate=self.frame_rate,
+            max_time_steps=self.max_time_steps,
+            pitch_min=self.pitch_min,
+            n_pitches=self.n_pitches,
+            random_crop=self.random_crop,
+        )
+        x = torch.from_numpy(pianoroll).float()
+        y = torch.tensor(self.label_to_idx[row["genre"]], dtype=torch.long)
+
+        return {
+            "x": x,
+            "y": y,
+        }
+
+
+def build_pianoroll_from_note_arrays(
+    arrays: Dict[str, np.ndarray],
+    frame_rate: float,
+    max_time_steps: int,
+    pitch_min: int = 0,
+    n_pitches: int = 128,
+    random_crop: bool = False,
+) -> np.ndarray:
+    pitch = arrays["pitch"].astype(np.int16)
+    onset = arrays["onset_sec"].astype(np.float32)
+    duration = arrays["duration_sec"].astype(np.float32)
+    velocity = arrays["velocity"].astype(np.float32)
+
+    pianoroll = np.zeros((n_pitches, max_time_steps), dtype=np.float32)
+    if len(pitch) == 0:
+        return pianoroll
+
+    note_start_sec = onset - np.min(onset)
+    note_end_sec = note_start_sec + np.maximum(duration, 0.0)
+    total_steps = max(int(np.ceil(np.max(note_end_sec) * frame_rate)), 1)
+
+    crop_start = 0
+    if random_crop and total_steps > max_time_steps:
+        crop_start = np.random.randint(0, total_steps - max_time_steps + 1)
+
+    starts = np.floor(note_start_sec * frame_rate).astype(np.int64) - crop_start
+    ends = np.ceil(note_end_sec * frame_rate).astype(np.int64) - crop_start
+    ends = np.maximum(ends, starts + 1)
+
+    for note_pitch, start, end, note_velocity in zip(pitch, starts, ends, velocity):
+        pitch_idx = int(note_pitch) - pitch_min
+        if pitch_idx < 0 or pitch_idx >= n_pitches:
+            continue
+
+        start = max(int(start), 0)
+        end = min(int(end), max_time_steps)
+        if start >= end:
+            continue
+
+        pianoroll[pitch_idx, start:end] = np.maximum(
+            pianoroll[pitch_idx, start:end],
+            note_velocity / 127.0,
+        )
+
+    return pianoroll
 
 
 class MidiNoteMatrixDataset(Dataset):
@@ -43,11 +118,13 @@ class MidiNoteMatrixDataset(Dataset):
         metadata_csv: Path,
         label_to_idx: Dict[str, int] | None = None,
         max_notes: int = 2048,
+        normalize: bool = True,
     ):
         self.metadata = pd.read_csv(metadata_csv)
         self.matrix_dir = matrix_dir
-        self.label_to_idx = label_to_idx
+        self.label_to_idx = label_to_idx or build_label_mapping(self.metadata)
         self.max_notes = max_notes
+        self.normalize = normalize
 
     def __len__(self):
         return len(self.metadata)
@@ -77,7 +154,10 @@ class MidiNoteMatrixDataset(Dataset):
         mask = np.zeros((self.max_notes,), dtype=np.bool_)
 
         if n_notes > 0:
-            padded[:n_notes] = note_matrix[:n_notes]
+            sequence = note_matrix[:n_notes]
+            if self.normalize:
+                sequence = normalize_note_matrix(sequence)
+            padded[:n_notes] = sequence
             mask[:n_notes] = True
 
         x = torch.from_numpy(padded)
@@ -89,6 +169,27 @@ class MidiNoteMatrixDataset(Dataset):
             "mask": mask,
             "y": y,
         }
+
+
+def normalize_note_matrix(note_matrix: np.ndarray) -> np.ndarray:
+    normalized = note_matrix.copy().astype(np.float32)
+
+    normalized[:, 0] = normalized[:, 0] / 127.0
+
+    onset = normalized[:, 1]
+    onset = onset - np.min(onset)
+    max_onset = np.max(onset)
+    normalized[:, 1] = onset / max_onset if max_onset > 0 else onset
+
+    duration = normalized[:, 2]
+    max_duration = np.max(duration)
+    normalized[:, 2] = duration / max_duration if max_duration > 0 else duration
+
+    normalized[:, 3] = normalized[:, 3] / 127.0
+    normalized[:, 4] = normalized[:, 4] / max(float(np.max(normalized[:, 4])), 1.0)
+    normalized[:, 5] = normalized[:, 5] / 15.0
+
+    return normalized
 
 
 def compute_piece_duration(onset: np.ndarray, duration: np.ndarray) -> float:
