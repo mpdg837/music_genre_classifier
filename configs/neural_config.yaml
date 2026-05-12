@@ -1,0 +1,7 @@
+defaults:
+  - /data: xmidi
+  - /model@model: muserenet
+  - _self_
+
+seed: 42
+save_weights_path: checkpoints/
