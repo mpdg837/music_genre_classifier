@@ -1,0 +1,27 @@
+name: muserenet
+
+dataset:
+  kind: pianoroll
+  frame_rate: 20.0
+  max_time_steps: 1024
+  pitch_min: 0
+  n_pitches: 128
+  batch_size: 16
+  num_workers: 2
+
+training:
+  epochs: 50
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  validation_size: 0.2
+  gradient_clip_norm: 1.0
+
+instance:
+  _target_: midi_xai.models.neural.muserenet.MuSeReNetClassifier
+  input_channels: ${model.dataset.n_pitches}
+  channels: [32, 64, 128]
+  resolutions: [1, 2, 4]
+  kernel_size: 5
+  block_depth: 1
+  dropout: 0.2
+  classifier_hidden_dim: 128
