@@ -1,8 +1,8 @@
 name: xmidi
 paths:
-  dataset_dir: data/raw/xmidi
-  processed_dir: data/processed/xmidi
-  labels_output_path: data/interim/xmidi_labels.csv
+  dataset_dir: ${oc.env:SCRATCH}/music/data/raw/xmidi
+  processed_dir: ${oc.env:SCRATCH}/music/data/processed/xmidi
+  labels_output_path: ${oc.env:SCRATCH}/music/data/interim/xmidi_labels.csv
   temp_zip_path: tmp/xmidi.zip
 
 download:

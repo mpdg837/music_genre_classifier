@@ -1,0 +1,38 @@
+name: musicbert
+
+dataset:
+  kind: musicbert
+  tokenizer_name_or_path: manoskary/miditok-REMI
+  max_length: 2048
+  eval_stride: 1024
+  eval_max_windows: 8
+  eval_window_batch_size: 4
+  add_bos_eos: true
+  cache_token_ids: true
+  batch_size: 2
+  num_workers: 2
+
+training:
+  epochs: 12
+  learning_rate: 0.0001
+  encoder_learning_rate: 0.000005
+  classifier_learning_rate: 0.0001
+  weight_decay: 0.01
+  validation_size: 0.2
+  gradient_clip_norm: 1.0
+  gradient_accumulation_steps: 8
+  scheduler:
+    kind: linear_warmup
+    warmup_ratio: 0.1
+    min_lr_ratio: 0.0
+  freeze_encoder_epochs: 2
+  class_weighting: balanced
+
+instance:
+  _target_: midi_xai.models.neural.musicbert.MusicBertGenreClassifier
+  pretrained_model_name_or_path: manoskary/musicbert-large
+  dropout: 0.1
+  classifier_hidden_dim: 512
+  pooling: cls
+  freeze_encoder: false
+  gradient_checkpointing: true

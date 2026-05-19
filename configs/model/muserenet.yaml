@@ -19,9 +19,9 @@ training:
 instance:
   _target_: midi_xai.models.neural.muserenet.MuSeReNetClassifier
   input_channels: ${model.dataset.n_pitches}
-  channels: [32, 64, 128]
+  channels: [96, 192, 384]
   resolutions: [1, 2, 4]
   kernel_size: 5
   block_depth: 1
   dropout: 0.2
-  classifier_hidden_dim: 128
+  classifier_hidden_dim: 384
