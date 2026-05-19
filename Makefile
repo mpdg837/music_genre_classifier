@@ -5,6 +5,10 @@
 PROJECT_NAME = music_genre_classifier
 PYTHON_VERSION = 3.11
 PYTHON_INTERPRETER = python
+VENV ?= $(or $(UV_PROJECT_ENVIRONMENT),$(VIRTUAL_ENV),.venv)
+export UV_PROJECT_ENVIRONMENT := $(VENV)
+VENV_ACTIVATE = $(VENV)/bin/activate
+UV_RUN = . "$(VENV_ACTIVATE)" && uv run --active
 
 #################################################################################
 # COMMANDS                                                                      #
@@ -43,14 +47,69 @@ test:
 	uv run pytest
 
 
+## Prepare the XMIDI dataset
+.PHONY: data
+data:
+	@if [ ! -f "$(VENV_ACTIVATE)" ]; then \
+		echo "Virtual environment not found: $(VENV)"; \
+		echo "Create it with: make create_environment VENV=/path/to/venv"; \
+		exit 1; \
+	fi
+	$(UV_RUN) python scripts/prepare_data.py
+
+
+## Train the Transformer neural classifier
+.PHONY: train_transformer
+train_transformer:
+	@if [ ! -f "$(VENV_ACTIVATE)" ]; then \
+		echo "Virtual environment not found: $(VENV)"; \
+		echo "Create it with: make create_environment VENV=/path/to/venv"; \
+		exit 1; \
+	fi
+	$(UV_RUN) python scripts/train_neural.py model=transformer
+
+
+## Train the MuSeReNet neural classifier
+.PHONY: train_muserenet
+train_muserenet:
+	@if [ ! -f "$(VENV_ACTIVATE)" ]; then \
+		echo "Virtual environment not found: $(VENV)"; \
+		echo "Create it with: make create_environment VENV=/path/to/venv"; \
+		exit 1; \
+	fi
+	$(UV_RUN) python scripts/train_neural.py model=muserenet
+
+
+## Fine-tune the Hugging Face MusicBERT genre classifier
+.PHONY: train_musicbert
+train_musicbert:
+	@if [ ! -f "$(VENV_ACTIVATE)" ]; then \
+		echo "Virtual environment not found: $(VENV)"; \
+		echo "Create it with: make create_environment VENV=/path/to/venv"; \
+		exit 1; \
+	fi
+	$(UV_RUN) python scripts/train_neural.py model=musicbert
+
+
+## Evaluate frozen MusicBERT embeddings with a logistic-regression head
+.PHONY: eval_musicbert_embeddings
+eval_musicbert_embeddings:
+	@if [ ! -f "$(VENV_ACTIVATE)" ]; then \
+		echo "Virtual environment not found: $(VENV)"; \
+		echo "Create it with: make create_environment VENV=/path/to/venv"; \
+		exit 1; \
+	fi
+	$(UV_RUN) python scripts/evaluate_musicbert_embeddings.py model=musicbert
+
+
 
 ## Set up Python interpreter environment
 .PHONY: create_environment
 create_environment:
-	uv venv --python $(PYTHON_VERSION)
+	uv venv "$(VENV)" --python $(PYTHON_VERSION)
 	@echo ">>> New uv virtual environment created. Activate with:"
-	@echo ">>> Windows: .\\\\.venv\\\\Scripts\\\\activate"
-	@echo ">>> Unix/macOS: source ./.venv/bin/activate"
+	@echo ">>> Windows: $(VENV)\\\\Scripts\\\\activate"
+	@echo ">>> Unix/macOS: source $(VENV_ACTIVATE)"
 	
 
 
