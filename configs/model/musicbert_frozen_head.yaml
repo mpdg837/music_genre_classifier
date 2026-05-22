@@ -1,4 +1,4 @@
-name: musicbert
+name: musicbert_frozen_head
 
 dataset:
   kind: musicbert

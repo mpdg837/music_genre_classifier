@@ -4,4 +4,6 @@ defaults:
   - _self_
 
 seed: 42
-save_weights_path: checkpoints/
+save_weights_path: /net/tscratch/people/plgatarsander/WIMU_DATA/checkpoints
+load_weights_path: null
+strict_load_weights: true

@@ -1,0 +1,7 @@
+defaults:
+  - /data: xmidi
+  - /model@model: muserenet
+  - /tcav@tcav: muserenet_baseline
+  - _self_
+
+seed: 42

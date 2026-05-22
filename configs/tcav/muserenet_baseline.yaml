@@ -1,0 +1,75 @@
+name: muserenet_baseline
+
+checkpoint_path: /net/tscratch/people/plgatarsander/WIMU_DATA/checkpoints/muserenet.pt
+strict_load_weights: true
+artifacts_dir: /net/tscratch/people/plgatarsander/WIMU_DATA/tcav/muserenet_baseline
+
+batch_size: 16
+num_workers: 2
+max_activation_batches: null
+
+layers:
+  - classifier.1
+  - classifier.2
+
+target_classes: all
+
+concepts:
+  definitions: []
+  manifest_paths: []
+  manifest_dir: ${oc.env:SCRATCH}/music/data/concepts/manifests/muserenet_baseline
+  source_split: train
+  samples_per_concept: 30
+  feature_concepts:
+    - name: high_note_density
+      feature: note_density
+      tail: high
+    - name: low_note_density
+      feature: note_density
+      tail: low
+    - name: high_polyphony
+      feature: avg_polyphony
+      tail: high
+    - name: wide_pitch_range
+      feature: pitch_range
+      tail: high
+    - name: high_pitch_register
+      feature: pitch_mean
+      tail: high
+    - name: low_pitch_register
+      feature: pitch_mean
+      tail: low
+    - name: strong_velocity
+      feature: velocity_mean
+      tail: high
+    - name: long_notes
+      feature: duration_mean
+      tail: high
+    - name: short_notes
+      feature: duration_mean
+      tail: low
+    - name: irregular_ioi
+      feature: ioi_std
+      tail: high
+    - name: regular_ioi
+      feature: ioi_std
+      tail: low
+
+random_controls:
+  definitions: []
+  manifest_paths: []
+  output_dir: ${oc.env:SCRATCH}/music/data/concepts/random_controls/muserenet_baseline
+  source_split: train
+  n_controls: 10
+  samples_per_control: 30
+
+cav:
+  c: 1.0
+  max_iter: 10000
+  test_size: 0.2
+
+evaluation:
+  max_examples_per_class: null
+
+significance:
+  alpha: 0.05

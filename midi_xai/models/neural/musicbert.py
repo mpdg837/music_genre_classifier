@@ -1,4 +1,5 @@
-from collections.abc import Mapping
+from collections import OrderedDict
+from collections.abc import Mapping, Sequence
 
 import torch
 from torch import nn
@@ -13,6 +14,7 @@ class MusicBertGenreClassifier(nn.Module):
         encoder_config: Mapping[str, int | float | str | bool] | None = None,
         dropout: float = 0.1,
         classifier_hidden_dim: int | None = None,
+        classifier_hidden_dims: Sequence[int] | None = None,
         pooling: str = "mean",
         freeze_encoder: bool = False,
         gradient_checkpointing: bool = False,
@@ -31,21 +33,16 @@ class MusicBertGenreClassifier(nn.Module):
             self.encoder = AutoModel.from_pretrained(pretrained_model_name_or_path)
 
         hidden_size = int(self.encoder.config.hidden_size)
-        if classifier_hidden_dim is None:
-            self.classifier = nn.Sequential(
-                nn.LayerNorm(hidden_size),
-                nn.Dropout(dropout),
-                nn.Linear(hidden_size, num_classes),
+        if classifier_hidden_dims is None:
+            classifier_hidden_dims = (
+                [] if classifier_hidden_dim is None else [classifier_hidden_dim]
             )
-        else:
-            self.classifier = nn.Sequential(
-                nn.LayerNorm(hidden_size),
-                nn.Dropout(dropout),
-                nn.Linear(hidden_size, classifier_hidden_dim),
-                nn.GELU(),
-                nn.Dropout(dropout),
-                nn.Linear(classifier_hidden_dim, num_classes),
-            )
+        self.classifier = build_classifier_head(
+            input_dim=hidden_size,
+            hidden_dims=classifier_hidden_dims,
+            num_classes=num_classes,
+            dropout=dropout,
+        )
 
         self.set_encoder_trainable(not freeze_encoder)
 
@@ -84,3 +81,29 @@ class MusicBertGenreClassifier(nn.Module):
         summed = (outputs.last_hidden_state * mask).sum(dim=1)
         lengths = mask.sum(dim=1).clamp(min=1.0)
         return summed / lengths
+
+
+def build_classifier_head(
+    input_dim: int,
+    hidden_dims: Sequence[int],
+    num_classes: int,
+    dropout: float,
+) -> nn.Sequential:
+    layers = [
+        ("input_norm", nn.LayerNorm(input_dim)),
+        ("input_dropout", nn.Dropout(dropout)),
+    ]
+    current_dim = input_dim
+
+    for idx, hidden_dim in enumerate(hidden_dims):
+        layers.extend(
+            [
+                (f"linear_{idx}", nn.Linear(current_dim, hidden_dim)),
+                (f"activation_{idx}", nn.GELU()),
+                (f"dropout_{idx}", nn.Dropout(dropout)),
+            ]
+        )
+        current_dim = hidden_dim
+
+    layers.append(("logits", nn.Linear(current_dim, num_classes)))
+    return nn.Sequential(OrderedDict(layers))
