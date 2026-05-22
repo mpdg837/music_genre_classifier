@@ -2,7 +2,6 @@ import importlib
 
 import pytest
 
-
 MODULES = [
     "torch",
     "pandas",
@@ -13,6 +12,9 @@ MODULES = [
     "captum",
     "partitura",
     "omegaconf",
+    "transformers",
+    "miditok",
+    "scipy",
 ]
 
 
@@ -79,13 +81,27 @@ def test_hydra_config_load() -> None:
     assert OmegaConf.is_config(cfg)
 
 
+def test_tcav_config_load() -> None:
+    """Ensure the MuseResNet TCAV config composes."""
+    from pathlib import Path
+
+    from hydra import compose, initialize_config_dir
+
+    cfg_dir = str(Path(__file__).resolve().parents[1] / "configs")
+    with initialize_config_dir(version_base=None, config_dir=cfg_dir):
+        cfg = compose(config_name="tcav_config")
+
+    assert cfg.tcav.name == "muserenet_baseline"
+    assert "classifier.1" in cfg.tcav.layers
+
+
 def test_neural_models_compose_and_forward() -> None:
     """Hydra neural_config + MuSeReNet and Transformer forward shapes."""
     from pathlib import Path
 
     import hydra
-    import torch
     from hydra import compose, initialize_config_dir
+    import torch
 
     cfg_dir = str(Path(__file__).resolve().parents[1] / "configs")
     with initialize_config_dir(version_base=None, config_dir=cfg_dir):
@@ -100,6 +116,56 @@ def test_neural_models_compose_and_forward() -> None:
                 mask = torch.ones(2, 32, dtype=torch.bool)
                 logits = model(x, mask)
             assert logits.shape == (2, 3)
+
+
+def test_musicbert_classifier_forward_tiny_config() -> None:
+    """MusicBERT classifier head works with a tiny offline BERT config."""
+    import torch
+
+    from midi_xai.models.neural.musicbert import MusicBertGenreClassifier
+
+    model = MusicBertGenreClassifier(
+        pretrained_model_name_or_path=None,
+        encoder_config={
+            "vocab_size": 32,
+            "hidden_size": 16,
+            "num_hidden_layers": 1,
+            "num_attention_heads": 2,
+            "intermediate_size": 32,
+            "max_position_embeddings": 16,
+            "type_vocab_size": 1,
+        },
+        num_classes=3,
+        classifier_hidden_dims=[8, 4],
+        freeze_encoder=True,
+    ).eval()
+    input_ids = torch.ones(2, 8, dtype=torch.long)
+    attention_mask = torch.ones(2, 8, dtype=torch.long)
+
+    logits = model(input_ids=input_ids, attention_mask=attention_mask)
+
+    assert logits.shape == (2, 3)
+
+
+def test_tcav_cav_classifier_smoke() -> None:
+    """Captum-compatible CAV classifier returns normalized weights."""
+    import torch
+    from torch.utils.data import DataLoader, TensorDataset
+
+    from midi_xai.interpretability.tcav.core import SklearnLinearSVCClassifier
+
+    inputs = torch.cat([torch.randn(8, 5) - 1.0, torch.randn(8, 5) + 1.0])
+    labels = torch.tensor([0] * 8 + [1] * 8)
+    classifier = SklearnLinearSVCClassifier()
+
+    classifier.train_and_eval(
+        DataLoader(TensorDataset(inputs, labels), batch_size=4),
+        test_split_ratio=0.25,
+    )
+    weights = classifier.weights()
+
+    assert weights.shape == (2, 5)
+    assert torch.allclose(torch.linalg.vector_norm(weights, dim=1), torch.ones(2))
 
 
 def test_omegaconf_basic() -> None:
@@ -128,9 +194,9 @@ def test_wandb_offline_init() -> None:
 
 def test_captum_basic() -> None:
     """Check that Captum can compute a simple attribution."""
+    from captum.attr import IntegratedGradients
     import torch
     import torch.nn as nn
-    from captum.attr import IntegratedGradients
 
     model = nn.Sequential(nn.Linear(2, 1))
     model.eval()
