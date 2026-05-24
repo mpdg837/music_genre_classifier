@@ -75,6 +75,12 @@ uv run python scripts/train_neural.py model=transformer model.training.epochs=50
 
 Checkpoints are written under `save_weights_path` (default `checkpoints/`); the filename comes from the model’s `name` field in its YAML (e.g. `muserenet.pt`, `midi_transformer.pt`).
 
+To continue training from a saved neural checkpoint, pass its path with `load_weights_path`:
+
+```bash
+uv run python scripts/train_neural.py model=musicbert load_weights_path=/path/to/musicbert.pt
+```
+
 ### GPU / cluster
 
 Training uses `cuda` when PyTorch detects a GPU; otherwise CPU. On a cluster, load a CUDA-capable module / image that matches your PyTorch build and verify with `nvidia-smi`.
