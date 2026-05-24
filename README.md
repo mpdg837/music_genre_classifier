@@ -103,6 +103,19 @@ make test
 
 Tests cover dependency imports, Hydra config loading, and a smoke forward pass for **MuSeReNet** and **Transformer** (instantiated from configs).
 
+## TCAV result aggregation
+
+After running MuSeReNet TCAV, aggregate class-level concept effects and plots with:
+
+```bash
+uv run python scripts/aggregate_tcav_results.py \
+  --summary-csv checkpoints/tcav_scores/tcav_summary.csv \
+  --output-dir checkpoints/tcav_scores/aggregated \
+  --figures-dir reports/figures/tcav
+```
+
+The script writes ranked per-class concept tables plus heatmaps and top-concept bar charts. The reported effect is `mean_sign_count - 0.5`, so positive values support a genre class and negative values oppose it.
+
 ## Repository layout (short)
 
 | Path | Role |

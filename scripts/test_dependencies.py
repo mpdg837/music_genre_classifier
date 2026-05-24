@@ -168,6 +168,29 @@ def test_tcav_cav_classifier_smoke() -> None:
     assert torch.allclose(torch.linalg.vector_norm(weights, dim=1), torch.ones(2))
 
 
+def test_tcav_summary_aggregation() -> None:
+    import pandas as pd
+
+    from midi_xai.interpretability.tcav.reports import aggregate_tcav_summary
+
+    summary = pd.DataFrame(
+        {
+            "concept": ["high_pitch", "low_density", "high_pitch"],
+            "layer": ["classifier.1", "classifier.1", "classifier.2"],
+            "target_class": ["classical", "classical", "rock"],
+            "mean_sign_count": [0.82, 0.31, 0.55],
+            "significant": [True, True, False],
+            "direction": ["positive", "negative", "not_significant"],
+        }
+    )
+
+    annotated, ranked = aggregate_tcav_summary(summary)
+
+    assert list(annotated["effect"].round(2)) == [0.32, -0.19, 0.05]
+    assert ranked.iloc[0]["concept"] == "high_pitch"
+    assert int(ranked[ranked["target_class"] == "classical"].iloc[0]["rank_within_class"]) == 1
+
+
 def test_omegaconf_basic() -> None:
     """Check that OmegaConf can create a config object."""
     from omegaconf import OmegaConf

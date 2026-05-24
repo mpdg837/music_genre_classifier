@@ -11,7 +11,9 @@ from midi_xai.interpretability.tcav.core import (
 )
 from midi_xai.interpretability.tcav.reports import (
     SignificanceResult,
+    aggregate_tcav_summary,
     summarize_tcav_trials,
+    write_tcav_aggregates,
 )
 
 __all__ = [
@@ -24,4 +26,6 @@ __all__ = [
     "load_model_checkpoint",
     "load_concept_specs",
     "summarize_tcav_trials",
+    "aggregate_tcav_summary",
+    "write_tcav_aggregates",
 ]
