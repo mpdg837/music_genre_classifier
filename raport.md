@@ -189,7 +189,7 @@ W analizowanych przykładach piano-roll pozwolił zauważyć różnice w charakt
 | country     | regularny przebieg, powtarzalne fragmenty, umiarkowana złożoność melodyczna                          | struktura jest uporządkowana, z wyraźnymi schematami                     |
 | traditional | mniejsza gęstość nut, wolniejszy przebieg, mniej złożone układy                                      | utwory mają prostszą i bardziej stabilną strukturę czasową               |
 
-W kontekście dalszego modelowania oznacza to, że reprezentacja piano-roll może być użyteczna jako wejście dla modeli analizujących dane sekwencyjne lub obrazowe. Pozwala ona zachować informację o kolejności zdarzeń muzycznych, relacjach czasowych między nutami oraz powtarzalności motywów. Dzięki temu może uzupełniać cechy statystyczne i tonalne, które opisują utwór bardziej ogólnie, ale nie pokazują jego przebiegu w czasie.
+W kontekście dalszego modelowania oznacza to, że reprezentacja piano-roll może być użyteczna jako wejście dla modeli analizujących dane sekwencyjne lub obrazowe. Pozwala ona zachować informację o kolejności zdarzeń muzycznych, relacjach ⁠Andruczyk Miłosz czasowych między nutami oraz powtarzalności motywów. Dzięki temu może uzupełniać cechy statystyczne i tonalne, które opisują utwór bardziej ogólnie, ale nie pokazują jego przebiegu w czasie.
 
 ### Korelacje i PCA
 
@@ -210,6 +210,12 @@ Jak modele bazowe użyto:
 - **Logistic Regression** - pełniła rolę prostego modelu referencyjnego. Model ten jest łatwy do interpretacji, dlatego może służyć jako punkt odniesienia dla bardziej złożonych metod.
 
 - **Random Forest** - zastosowano jako nieliniowy model bazowy.
+
+- SVM
+
+- KNN
+
+- 
 
 Oprócz modeli klasycznych zaimplementowano również modele neuronowe. Ich zadaniem było sprawdzenie, czy bardziej złożone architektury są w stanie lepiej wykorzystać strukturę danych muzycznych:
 
@@ -244,15 +250,34 @@ Implementacje te znajdują się w folderze scripts
 
 ## Ewaluacja modeli wraz z opisem błędów
 
+Modele zostały ocenione na tym samym zbiorze walidacyjnym zawierającym **10 485 przykładów**. Na jej podstawie uzyskano poniższe wartości metryk
+
 ### Modele proste (bazowe + MLP)
 
+W pierwszym etapie eksperymentów porównano klasyczne modele uczenia maszynowego oraz prosty model MLP trenowany na wyekstrahowanych cechach muzycznych. Modele korzystały z reprezentacji tabularnej, czyli z wcześniej obliczonych cech opisujących próbkę jako pojedynczy wektor liczbowy.
 
+| Model               | Train accuracy | Accuracy | Treningowe F1 | F1 na zbiorze walidacyjnym | Różnica F1 |
+| ------------------- | -------------- | -------- | ------------- | -------------------------- | ---------- |
+| Random Forest       | 0.996          | 0.614    | 0.996         | 0.562                      | 0.434      |
+| SVM                 | 0.511          | 0.471    | 0.497         | 0.450                      | 0.047      |
+| MLP                 | 0.588          | 0.485    | 0.537         | 0.436                      | 0.101      |
+| KNN                 | 0.605          | 0.472    | 0.557         | 0.431                      | 0.125      |
+| Logistic Regression | 0.420          | 0.412    | 0.400         | 0.395                      | 0.005      |
+| Linear SVC          | 0.442          | 0.440    | 0.390         | 0.389                      | 0.001      |
+
+Najlepszy wynik walidacyjny uzyskał **Random Forest**, osiągając accuracy = 0.614 oraz F1 = 0.562. Jest to najwyższy wynik spośród analizowanych modeli bazowych. Jednocześnie bardzo wysoki wynik na zbiorze treningowym, bliski 1.0, wskazuje na silne dopasowanie modelu do danych treningowych. Różnica między treningowym F1 a F1 na zbiorze walidacyjnym wyniosła aż 0.434, co sugeruje wyraźny overfitting.
+
+Drugim najlepszym modelem pod względem macro F1 był **SVM**, który uzyskał F1 = 0.450 na zbiorze walidacyjnym. Wynik ten był niższy niż dla Random Forest, ale różnica między wynikiem treningowym i walidacyjnym była znacznie mniejsza. Oznacza to, że SVM generalizował stabilniej, choć jego skuteczność była ograniczona.
+
+Model **MLP** osiągnął accuracy = 0.485 oraz F1 = 0.436 na zbiorze walidacyjnym. Wynik był zbliżony do KNN i SVC, ale widoczna była większa różnica między zbiorem treningowym a walidacyjnym niż w przypadku modeli liniowych. Sugeruje to, że MLP częściowo dopasował się do danych treningowych, ale nie przełożyło się to na wyraźnie lepszą jakość klasyfikacji.
+
+**KNN** uzyskał F1 = 0.431 na zbiorze walidacyjnym, czyli wynik porównywalny z MLP. Model osiągnął stosunkowo wysokie wyniki na treningu, ale gorsze na walidacji, co wskazuje, że lokalne podobieństwa między próbkami nie były wystarczające do stabilnego rozróżniania gatunków.
+
+Najniższe wyniki uzyskały modele liniowe: **Logistic Regression** oraz **Linear SVC**. Ich wartości F1 na walidacji wyniosły odpowiednio 0.395 i 0.389. Jednocześnie różnice między wynikami treningowymi i walidacyjnymi były bardzo małe, co oznacza, że modele te nie przeuczyły się, ale były zbyt proste, aby uchwycić bardziej złożone zależności między cechami a gatunkiem muzycznym.
 
 ### Modele złożone (Transformer oraz MuSeReNet)
 
 W pierwszym etapie eksperymentów zastosowano metody bazowe, takie jak Logistic Regression oraz Random Forest, trenowane na wyekstrahowanych cechach statystycznych i tonalnych. Modele te stanowiły punkt odniesienia dla dalszych badań, jednak uzyskane wyniki nie były w pełni satysfakcjonujące. Z tego powodu w kolejnym etapie zdecydowano się zastosować modele neuronowe, które mogą korzystać z bogatszych reprezentacji muzyki.
-
-W ramach tej ewaluacji porównano wyniki dwóch modeli neuronowych: **MuSeReNet**, wykorzystującego reprezentację piano-roll, oraz MIDI Transformer, operującego na sekwencji nut. Oba modele zostały ocenione na tym samym zbiorze walidacyjnym zawierającym **10 485 przykładów**. Na jej podstawie uzyskano takie wartości metryk:
 
 | Metryka         | MuSeReNet | MIDI Transformer |
 | --------------- | --------- | ---------------- |
@@ -277,13 +302,9 @@ Największą różnicę między modelami zaobserwowano dla klasy **jazz**. MuSeR
 
 Jedyną klasą, w której transformer uzyskał minimalnie lepszy wynik, była klasa **classical**. Różnica była jednak bardzo mała: **F1 = 0.63** dla transformera wobec **F1 = 0.62** dla MuSeReNet, dlatego nie można traktować jej jako istotnej przewagi.
 
-#### Błędy
-
 Największym problemem obu modeli była klasa **traditional**. Jest to najmniej liczna klasa w zbiorze walidacyjnym — zawiera tylko **350 przykładów**. MIDI Transformer w ogóle nie rozpoznał tej klasy poprawnie, uzyskując zerowe precision ,recall oraz F1. MuSeReNet poradził sobie nieco lepiej, ale wynik **F1 = 0.15** nadal jest bardzo niski. Wyniki wskazują, że modele mają tendencję do lepszego rozpoznawania klas liczniejszych, takich jak **pop**, **rock** i **country**, zaś gorzej radzą sobie z klasami słabiej reprezentowanymi. Jest to widoczne szczególnie w przypadku klasy **traditional**, która ma najmniejszy support. Niska wartość macro F1 względem weighted F1 potwierdza, że skuteczność modeli nie jest równomierna dla wszystkich gatunków.
 
-### Wybór modelu dla TACV
-
-Ewaluacja błędów pokazuje, że **MuSeReNet był skuteczniejszym modelem niż pozostałe modele** w przeprowadzonym eksperymencie. Lepsze wyniki MuSeReNet sugerują, że reprezentacja piano-roll dobrze nadaje się do klasyfikacji gatunku muzycznego, ponieważ zachowuje strukturę czasowo-wysokościową utworu. Transformer osiągnął słabsze wyniki, szczególnie dla klasy jazz i traditional, co może wynikać z ograniczeń zastosowanej reprezentacji sekwencyjnej, konfiguracji modelu lub niewystarczającej ilości danych dla niektórych klas. 
+Ewaluacja błędów pokazuje, że **MuSeReNet był skuteczniejszym modelem niż złożone pozostałe modele** w przeprowadzonym eksperymencie. Lepsze wyniki MuSeReNet sugerują, że reprezentacja piano-roll dobrze nadaje się do klasyfikacji gatunku muzycznego, ponieważ zachowuje strukturę czasowo-wysokościową utworu. Transformer osiągnął słabsze wyniki, szczególnie dla klasy jazz i traditional, co może wynikać z ograniczeń zastosowanej reprezentacji sekwencyjnej, konfiguracji modelu lub niewystarczającej ilości danych dla niektórych klas. 
 
 Głównym problemem było niezbalansowanie danych. Przy ponownej realizacji podobnego zadania warto jednak uwzględnić techniki ograniczające wpływ niezbalansowania, takie jak ważenie klas, oversampling, undersampling lub augmentacja danych. Mogłoby to poprawić rozpoznawanie klas mniejszościowych i zwiększyć stabilność wyników dla wszystkich gatunków.
 
