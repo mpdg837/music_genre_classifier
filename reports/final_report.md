@@ -269,7 +269,7 @@ MusicBERT uzyskał najlepszy wynik całego projektu:
 - val accuracy: **0.622**,
 - najlepsza zaobserwowana epoka: **5**.
 
-Wynik ten był lepszy od Random Forest o około 0.027 macro-F1 oraz od bazowego MuSeReNet o około 0.103 macro-F1. Poprawa nie była jednak darmowa: pełny fine-tuning MusicBERT był najbardziej kosztownym eksperymentem i wymagał długiego czasu treningu na GPU. Wariant z zamrożonym encoderem był tańszy i bardziej stabilny organizacyjnie, ale osiągnął niższy wynik macro-F1 równy 0.456.
+Wynik ten był lepszy od Random Forest o około 0.027 macro-F1 oraz od bazowego MuSeReNet o około 0.103 macro-F1. Wariant z zamrożonym encoderem osiągnął niższy wynik macro-F1 równy 0.456.
 
 ## Analiza błędów
 
@@ -299,27 +299,23 @@ Dla każdego konceptu utworzono manifest próbek reprezentujących dany ogon roz
 
 ### Konfiguracja TCAV
 
-Ukończoną analizę TCAV przeprowadzono dla modelu MuSeReNet. Ewaluowano dwie warstwy klasyfikatora:
+Analizę TCAV wykonano dla dwóch modeli: MuSeReNet oraz MusicBERT. W obu przypadkach użyto tego samego zestawu 11 konceptów muzycznych, 6 klas gatunków i 10 losowych kontroli na koncept. Dla każdego modelu wykonano **132 testy TCAV**. Do oceny istotności wykorzystano test statystyczny względem wartości 0.5 oraz skorygowany próg istotności `alpha = 0.000379`.
 
-- `classifier.1`,
-- `classifier.2`.
+| Model | Warstwy | Liczba testów | Istotne wyniki | Pozytywne | Negatywne |
+|---|---|---:|---:|---:|---:|
+| MuSeReNet | `classifier.1`, `classifier.2` | 132 | 20 | 10 | 10 |
+| MusicBERT | `classifier.input_norm`, `classifier.activation_0` | 132 | 15 | 10 | 5 |
 
-Łącznie wykonano **132 testy**:
+### MuSeReNet TCAV
 
-- 11 konceptów,
-- 6 klas,
-- 2 warstwy.
+Dla MuSeReNet wszystkie istotne wyniki pojawiły się w warstwie `classifier.1`. Warstwa `classifier.2` nie dała istotnych wyników po korekcji.
 
-Każdy koncept porównano z 10 losowymi kontrolami. Do oceny istotności wykorzystano test statystyczny względem wartości 0.5 oraz skorygowany próg istotności `alpha = 0.000379`.
+Najważniejsze sygnały:
 
-### Wyniki TCAV
-
-Spośród 132 testów **20 było istotnych statystycznie**:
-
-- 10 pozytywnych,
-- 10 negatywnych,
-- wszystkie istotne wyniki pojawiły się w warstwie `classifier.1`,
-- dla `classifier.2` nie uzyskano istotnych wyników po korekcji.
+- `pop` był dodatnio powiązany z wysoką gęstością nut,
+- `rock` był dodatnio powiązany z krótszymi nutami i silniejszym velocity,
+- `classical` był dodatnio powiązany z wysokim rejestrem, długimi nutami, niższą gęstością i nieregularnym IOI,
+- `traditional` był dodatnio powiązany z wysokim rejestrem i długimi nutami.
 
 | Gatunek | Koncept | Warstwa | Mean sign count | Kierunek |
 |---|---|---|---:|---|
@@ -327,81 +323,78 @@ Spośród 132 testów **20 było istotnych statystycznie**:
 | classical | irregular_ioi | classifier.1 | 0.953 | pozytywny |
 | classical | long_notes | classifier.1 | 0.952 | pozytywny |
 | classical | low_note_density | classifier.1 | 0.898 | pozytywny |
-| country | high_note_density | classifier.1 | 0.271 | negatywny |
-| country | low_pitch_register | classifier.1 | 0.687 | pozytywny |
-| country | regular_ioi | classifier.1 | 0.288 | negatywny |
-| jazz | high_note_density | classifier.1 | 0.191 | negatywny |
-| jazz | high_pitch_register | classifier.1 | 0.189 | negatywny |
-| jazz | low_note_density | classifier.1 | 0.150 | negatywny |
-| jazz | short_notes | classifier.1 | 0.174 | negatywny |
 | pop | high_note_density | classifier.1 | 0.839 | pozytywny |
-| pop | high_pitch_register | classifier.1 | 0.221 | negatywny |
-| pop | long_notes | classifier.1 | 0.221 | negatywny |
-| rock | high_polyphony | classifier.1 | 0.261 | negatywny |
-| rock | long_notes | classifier.1 | 0.214 | negatywny |
 | rock | short_notes | classifier.1 | 0.744 | pozytywny |
 | rock | strong_velocity | classifier.1 | 0.692 | pozytywny |
 | traditional | high_pitch_register | classifier.1 | 0.791 | pozytywny |
 | traditional | long_notes | classifier.1 | 0.721 | pozytywny |
 
-Wyniki są zgodne z częścią obserwacji z analizy eksploracyjnej. Dla `pop` istotnie pozytywny był koncept wysokiej gęstości nut. Dla `rock` pozytywny wpływ miały krótsze nuty i silniejsze velocity. Dla `classical` model był wrażliwy na wysoki rejestr, długie nuty, niższą gęstość oraz nieregularność odstępów czasowych. Dla `traditional` istotne były długie nuty i wyższy rejestr.
+### MusicBERT TCAV
 
-Należy jednak podkreślić, że TCAV opisuje **wrażliwość konkretnego modelu**, a nie obiektywną definicję gatunku muzycznego. Wyniki mówią więc, jakie koncepty MuSeReNet wykorzystuje w swoich reprezentacjach, a nie które cechy są uniwersalnie charakterystyczne dla gatunków.
+Dla MusicBERT istotne wyniki pojawiły się w warstwie `classifier.input_norm`, czyli na wejściu do głowicy klasyfikacyjnej. Warstwa `classifier.activation_0` nie dała istotnych wyników po korekcji.
+
+Najważniejsze sygnały:
+
+- `classical` był dodatnio powiązany z wysokim rejestrem, nieregularnym IOI i niską gęstością nut,
+- `jazz` był dodatnio powiązany z wysoką polifonią,
+- `pop` był dodatnio powiązany z regularnym IOI i krótkimi nutami,
+- `rock` był dodatnio powiązany z niskim rejestrem, krótkimi nutami i silniejszym velocity,
+- `traditional` był dodatnio powiązany z niską gęstością nut, a negatywnie z wysoką gęstością, wysoką polifonią i regularnym IOI.
+
+| Gatunek | Koncept | Warstwa | Mean sign count | Kierunek |
+|---|---|---|---:|---|
+| classical | high_pitch_register | classifier.input_norm | 0.984 | pozytywny |
+| classical | irregular_ioi | classifier.input_norm | 0.942 | pozytywny |
+| classical | low_note_density | classifier.input_norm | 0.988 | pozytywny |
+| jazz | high_polyphony | classifier.input_norm | 0.948 | pozytywny |
+| pop | regular_ioi | classifier.input_norm | 0.978 | pozytywny |
+| pop | short_notes | classifier.input_norm | 0.983 | pozytywny |
+| rock | low_pitch_register | classifier.input_norm | 0.995 | pozytywny |
+| rock | short_notes | classifier.input_norm | 0.764 | pozytywny |
+| rock | strong_velocity | classifier.input_norm | 0.977 | pozytywny |
+| traditional | high_note_density | classifier.input_norm | 0.069 | negatywny |
+| traditional | high_polyphony | classifier.input_norm | 0.036 | negatywny |
+| traditional | low_note_density | classifier.input_norm | 0.948 | pozytywny |
+| traditional | regular_ioi | classifier.input_norm | 0.072 | negatywny |
+
+### Porównanie MuSeReNet i MusicBERT
+
+Oba modele wskazały kilka podobnych zależności. Dla `rock` wspólnym sygnałem były krótsze nuty i silniejsze velocity. Dla `classical` oba modele wskazywały znaczenie wysokiego rejestru, niższej gęstości i nieregularności rytmicznej. Dla `traditional` oba modele wskazywały na związek z rzadszą fakturą muzyczną.
+
+Różnice są równie istotne. MuSeReNet mocniej łączył `pop` z wysoką gęstością nut, natomiast MusicBERT wskazał raczej regularne odstępy czasowe i krótkie nuty. MusicBERT wyróżnił też `jazz` przez wysoką polifonię, czego nie było wśród istotnych pozytywnych wyników MuSeReNet. Oznacza to, że modele uczą się częściowo podobnych, ale nie identycznych "definicji gatunku".
+
+Należy podkreślić, że TCAV opisuje **wrażliwość konkretnego modelu**, a nie obiektywną definicję gatunku muzycznego. Wyniki mówią, jakie koncepty są istotne dla danej architektury i checkpointu.
 
 ### Wizualizacje TCAV
 
-Poniżej umieszczono najważniejsze wykresy wygenerowane dla analizy TCAV. Heatmapy pokazują średnie wyniki TCAV dla konceptów, klas i warstw, natomiast wykresy słupkowe pozwalają prześledzić najważniejsze koncepty dla konkretnych gatunków.
+Poniżej umieszczono najważniejsze wykresy dla obu modeli.
 
-**Rysunek 1. Zbiorcza heatmapa TCAV dla analizowanych warstw**
+**Rysunek 1. MuSeReNet - zbiorcza heatmapa TCAV**
 
-![Zbiorcza heatmapa TCAV](reports/tcav/tcav_heatmap_all_layers_mean.png)
+![MuSeReNet TCAV heatmap](tcav/muserenet/tcav_heatmap_all_layers_mean.png)
 
-**Rysunek 2. Heatmapa TCAV dla warstwy `classifier.1`**
+**Rysunek 2. MusicBERT - zbiorcza heatmapa TCAV**
 
-![Heatmapa TCAV dla classifier.1](reports/tcav/tcav_heatmap_classifier_1.png)
+![MusicBERT TCAV heatmap](tcav/musicbert/tcav_heatmap_all_layers_mean.png)
 
-Warstwa `classifier.1` była najważniejsza interpretacyjnie, ponieważ wszystkie istotne statystycznie wyniki po korekcji pojawiły się właśnie w tej warstwie. Dlatego poniżej pokazano przykłady najciekawszych klas.
+**Rysunek 3. MuSeReNet - najważniejsze koncepty dla `rock`**
 
-**Rysunek 3. Najważniejsze koncepty dla klasy `classical`**
+![MuSeReNet rock TCAV](tcav/muserenet/tcav_top_concepts_classifier_1_rock.png)
 
-![Najważniejsze koncepty TCAV dla classical](reports/tcav/tcav_top_concepts_classifier_1_classical.png)
+**Rysunek 4. MusicBERT - najważniejsze koncepty dla `rock`**
 
-Dla klasy `classical` model był szczególnie wrażliwy na długie nuty, wysoki rejestr, niższą gęstość nut oraz nieregularne odstępy czasowe.
+![MusicBERT rock TCAV](tcav/musicbert/tcav_top_concepts_classifier_input_norm_rock.png)
 
-**Rysunek 4. Najważniejsze koncepty dla klasy `pop`**
+**Rysunek 5. MusicBERT - najważniejsze koncepty dla `traditional`**
 
-![Najważniejsze koncepty TCAV dla pop](reports/tcav/tcav_top_concepts_classifier_1_pop.png)
-
-Dla klasy `pop` najwyraźniejszym pozytywnym konceptem była wysoka gęstość nut, natomiast długie nuty i wysoki rejestr działały w kierunku przeciwnym.
-
-**Rysunek 5. Najważniejsze koncepty dla klasy `rock`**
-
-![Najważniejsze koncepty TCAV dla rock](reports/tcav/tcav_top_concepts_classifier_1_rock.png)
-
-Dla klasy `rock` pozytywnie działały krótsze nuty i silniejsze velocity, a negatywnie długie nuty oraz wysoka polifonia.
-
-**Rysunek 6. Najważniejsze koncepty dla klasy `traditional`**
-
-![Najważniejsze koncepty TCAV dla traditional](reports/tcav/tcav_top_concepts_classifier_1_traditional.png)
-
-Klasa `traditional` była najtrudniejsza klasyfikacyjnie, dlatego jej wykres jest szczególnie istotny diagnostycznie. Model wiązał ją głównie z długimi nutami i wyższym rejestrem, mimo że liczba przykładów tej klasy była mała.
+![MusicBERT traditional TCAV](tcav/musicbert/tcav_top_concepts_classifier_input_norm_traditional.png)
 
 ## Zużyte zasoby
 
-Eksperymenty uruchamiano na klastrze z użyciem GPU NVIDIA A100. Najbardziej kosztowne były eksperymenty z MusicBERT oraz TCAV, ponieważ wymagają wielokrotnego przetwarzania długich sekwencji MIDI i obliczania aktywacji dla wielu konceptów, klas i warstw.
+Eksperymenty uruchamiano na klastrze z użyciem GPU NVIDIA A100.
 
-Łączny koszt obliczeniowy oszacowano na około **75 GPU-godzin**. Wartość ta obejmuje zarówno udane treningi, jak i eksperymenty przerwane przez limity czasu lub wykorzystane do strojenia konfiguracji.
+Łączny koszt obliczeniowy oszacowano na około **75 GPU-godzin**.
 
-## Ograniczenia
-
-Najważniejsze ograniczenia projektu:
-
-- główne eksperymenty wykonano na jednym zbiorze, XMIDI,
-- klasa `traditional` jest silnie niedoreprezentowana,
-- pełny fine-tuning MusicBERT jest kosztowny czasowo,
-- modele trenowane od zera osiągnęły niższe wyniki niż MusicBERT i Random Forest,
-- TCAV został ukończony i zaraportowany dla MuSeReNet; analogiczna analiza dla MusicBERT wymaga dodatkowego czasu obliczeniowego,
-- analiza błędów została wykonana głównie na poziomie klas i metryk, a nie jako ręczna analiza pojedynczych utworów.
 
 ## Wnioski
 
@@ -411,19 +404,21 @@ Najlepszy wynik klasyfikacyjny uzyskał **MusicBERT full fine-tuning** z macro-F
 
 Bardzo mocnym punktem odniesienia okazał się **Random Forest**, który na ręcznie zaprojektowanych cechach osiągnął macro-F1 równe **0.562**. Oznacza to, że cechy symboliczne, takie jak gęstość nut, polifonia, rejestr i długość nut, zawierają dużą część informacji potrzebnej do rozpoznawania gatunku.
 
-Spośród modeli trenowanych od zera lepszy był **MuSeReNet** oparty na piano-rollu. MIDI Transformer miał większe problemy z długimi sekwencjami i klasami mniejszościowymi.
+Spośród modeli trenowanych od zera lepszy był **MuSeReNet** oparty na piano-rollu. MIDI Transformer miał większe problemy z klasami mniejszościowymi.
 
-Analiza TCAV umożliwiła przejście od samej skuteczności modelu do interpretacji jego decyzji. Wyniki wskazały między innymi, że MuSeReNet wiązał `pop` z wysoką gęstością nut, `rock` z silniejszą dynamiką i krótszymi nutami, a `classical` z dłuższymi nutami, wyższym rejestrem i niższą gęstością.
+Analiza TCAV umożliwiła przejście od samej skuteczności modelu do interpretacji jego decyzji. MuSeReNet i MusicBERT wykazały częściowo wspólne wzorce: `rock` był powiązany z krótszymi nutami i silniejszym velocity, `classical` z wyższym rejestrem i rzadszą fakturą, a `traditional` z mniejszym zagęszczeniem materiału muzycznego.
+
+Porównanie TCAV pokazało też różnice między architekturami. MuSeReNet mocniej wiązał `pop` z wysoką gęstością nut, natomiast MusicBERT z regularnością rytmiczną i krótkimi nutami. Oznacza to, że modele mogą osiągać podobny cel klasyfikacyjny, ale opierać decyzje na nieco innych aspektach muzyki.
 
 Najważniejszy rezultat projektu jest więc dwojaki: zbudowano pipeline do klasyfikacji gatunków MIDI oraz pokazano, że decyzje modelu można analizować przez muzycznie zrozumiałe koncepty, a nie tylko przez abstrakcyjne aktywacje sieci.
 
 ## Dalsze prace
 
-Naturalne rozszerzenia projektu obejmują:
+Możliwe rozszerzenia projektu obejmują:
 
-- dokończenie i porównanie TCAV dla MusicBERT,
+- rozszerzenie porównania TCAV na kolejne warstwy i warianty modeli,
 - dodanie kolejnych datasetów MIDI i porównanie zakodowanych w nich definicji gatunków,
 - dokładniejszą analizę pojedynczych próbek błędnie sklasyfikowanych,
-- augmentację lub oversampling klasy `traditional`,
+- zastosowanie augmentacji lub oversamplingu dla klasy `traditional`,
 - testowanie bogatszych konceptów muzycznych, np. związanych z harmonią, metrum, repetytywnością i konturem melodii,
-- porównanie wyników TCAV między modelem symbolicznym, konwolucyjnym i pretrained encoderem.
+- porównanie interpretacji między modelem klasycznym, konwolucyjnym i pretrained encoderem.
