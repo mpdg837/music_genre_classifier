@@ -201,22 +201,102 @@ Wyniki PCA potwierdzają, że problem klasyfikacji gatunków jest złożony. **C
 
 ## Implementacja modeli
 
-## Błędy modeli
+W ramach projektu zaimplementowano kilka podejść do klasyfikacji danych muzycznych ze zbioru XMIDI. Modele można podzielić na dwie główne grupy: modele bazowe, wykorzystujące wcześniej wyekstrahowane cechy statystyczne i tonalne, oraz modele neuronowe, które korzystają zarówno z cech tabularnych, jak i reprezentacji czasowych utworów.
 
-## Ewaluacja modeli
+Celem zastosowania różnych typów modeli było porównanie, na ile skuteczna jest klasyfikacja oparta wyłącznie na cechach zagregowanych, a na ile potrzebne są bardziej złożone reprezentacje muzyki, takie jak piano-roll lub reprezentacja sekwencyjna wykorzystywana przez modele transformerowe.
 
-## Interperowalność TACV
+Jak modele bazowe użyto:
+
+- **Logistic Regression** - pełniła rolę prostego modelu referencyjnego. Model ten jest łatwy do interpretacji, dlatego może służyć jako punkt odniesienia dla bardziej złożonych metod.
+
+- **Random Forest** - zastosowano jako nieliniowy model bazowy.
+
+Oprócz modeli klasycznych zaimplementowano również modele neuronowe. Ich zadaniem było sprawdzenie, czy bardziej złożone architektury są w stanie lepiej wykorzystać strukturę danych muzycznych:
+
+- **MLP** na wyekstrachowanych cechach - wielstwowa sieć neuronowa; stanowi naturalne rozszerzenie podejścia tabularnego.
+
+- CNN **MuSeReNET** w którym jako wejście wykorzystano reprezentację **piano-roll** - dzięki temu model CNN może wykrywać lokalne wzorce w przebiegu utworu, takie jak powtarzalne motywy rytmiczne, układy melodyczne czy fragmenty o zwiększonej polifonii.
+
+- Transformer w którym jako wejście ustanowiono sekwencje zdarzeń muzycznych - W przeciwieństwie do modeli opartych wyłącznie na cechach statystycznych, pozwala analizować kolejność i relacje między zdarzeniami muzycznymi
+
+Dla modelu transformerowego zastosowano reprezentację sekwencyjną opartą bezpośrednio na zdarzeniach muzycznych zapisanych w danych MIDI. Każdy utwór reprezentowany jest jako macierz nut o wymiarze 
+
+` max_notes * 6 `
+
+gdzie `max_notes` oznacza maksymalną liczbę nut branych pod uwagę z jednej próbki, natomiast każda nuta opisana jest sześcioma cechami.
+
+| Cecha          | Znaczenie                              |
+| -------------- | -------------------------------------- |
+| `pitch`        | wysokość dźwięku MIDI                  |
+| `onset_sec`    | czas rozpoczęcia nuty w sekundach      |
+| `duration_sec` | czas trwania nuty                      |
+| `velocity`     | dynamika dźwięku, czyli siła uderzenia |
+| `track`        | numer ścieżki MIDI                     |
+| `channel`      | kanał MIDI                             |
+
+Wiersze macierzy odpowiadają kolejnym nutom w utworze, dzięki czemu model analizuje muzykę jako sekwencję zdarzeń, a nie jako zestaw zagregowanych statystyk. Reprezentacja ta zachowuje informacje o kolejności nut, czasie ich rozpoczęcia, długości trwania oraz dynamice.
+
+Ponieważ próbki mają różną liczbę nut, sekwencje są przycinane lub uzupełniane zerami do stałej długości `max_notes`. Dodatkowo stosowana jest maska wskazująca, które pozycje odpowiadają rzeczywistym nutom, a które są paddingiem.
+
+Przed przekazaniem do modelu cechy są normalizowane, a następnie każda nuta jest przekształcana do wewnętrznej reprezentacji transformera. Dodawane jest także kodowanie pozycyjne, które pozwala modelowi uwzględnić kolejność zdarzeń i analizować zależności między nutami w czasie.
+
+Implementacje te znajdują się w folderze scripts
+
+## Ewaluacja modeli wraz z opisem błędów
+
+### Modele proste (bazowe + MLP)
+
+
+
+### Modele złożone (Transformer oraz MuSeReNet)
+
+W pierwszym etapie eksperymentów zastosowano metody bazowe, takie jak Logistic Regression oraz Random Forest, trenowane na wyekstrahowanych cechach statystycznych i tonalnych. Modele te stanowiły punkt odniesienia dla dalszych badań, jednak uzyskane wyniki nie były w pełni satysfakcjonujące. Z tego powodu w kolejnym etapie zdecydowano się zastosować modele neuronowe, które mogą korzystać z bogatszych reprezentacji muzyki.
+
+W ramach tej ewaluacji porównano wyniki dwóch modeli neuronowych: **MuSeReNet**, wykorzystującego reprezentację piano-roll, oraz MIDI Transformer, operującego na sekwencji nut. Oba modele zostały ocenione na tym samym zbiorze walidacyjnym zawierającym **10 485 przykładów**. Na jej podstawie uzyskano takie wartości metryk:
+
+| Metryka         | MuSeReNet | MIDI Transformer |
+| --------------- | --------- | ---------------- |
+| Accuracy        | 0.53      | 0.46             |
+| Macro precision | 0.50      | 0.40             |
+| Macro recall    | 0.48      | 0.39             |
+| Macro F1        | 0.48      | 0.39             |
+| Weighted F1     | 0.52      | 0.45             |
+
+**MuSeReNet** osiągnął lepsze wyniki we wszystkich głównych metrykach. Różnica w accuracy wynosi **0.07**, natomiast różnica w macro F1 wynosi **0.09**. Oznacza to, że model konwolucyjny oparty na piano-rollu lepiej wykorzystywał strukturę danych muzycznych niż transformer zastosowany w tej konfiguracji. Jednocześnie wartości macro F1 pokazują, że oba modele nadal miały duże problemy z równomiernym rozpoznawaniem wszystkich klas. Uzyskano też wyniki dla poszczególnych gatunków:
+
+| Gatunek     | Ilość próbek | MuSeReNet F1 | Transformer F1 | Różnica F1 |
+| ----------- | ------------ | ------------ | -------------- | ---------- |
+| classical   | 1 209        | 0.62         | 0.63           | -0.01      |
+| country     | 2 308        | 0.54         | 0.49           | +0.05      |
+| jazz        | 1 540        | 0.52         | 0.26           | +0.26      |
+| pop         | 2 476        | 0.52         | 0.48           | +0.04      |
+| rock        | 2 602        | 0.53         | 0.47           | +0.06      |
+| traditional | 350          | 0.15         | 0.00           | +0.15      |
+
+Największą różnicę między modelami zaobserwowano dla klasy **jazz**. MuSeReNet uzyskał dla niej **F1 = 0.52**, natomiast MIDI Transformer tylko **F1 = 0.26**. Sugeruje to, że reprezentacja piano-roll była skuteczniejsza w uchwyceniu wzorców charakterystycznych dla jazzu, takich jak zmienność wysokości dźwięków i bardziej złożona struktura czasowa.
+
+Jedyną klasą, w której transformer uzyskał minimalnie lepszy wynik, była klasa **classical**. Różnica była jednak bardzo mała: **F1 = 0.63** dla transformera wobec **F1 = 0.62** dla MuSeReNet, dlatego nie można traktować jej jako istotnej przewagi.
+
+#### Błędy
+
+Największym problemem obu modeli była klasa **traditional**. Jest to najmniej liczna klasa w zbiorze walidacyjnym — zawiera tylko **350 przykładów**. MIDI Transformer w ogóle nie rozpoznał tej klasy poprawnie, uzyskując zerowe precision ,recall oraz F1. MuSeReNet poradził sobie nieco lepiej, ale wynik **F1 = 0.15** nadal jest bardzo niski. Wyniki wskazują, że modele mają tendencję do lepszego rozpoznawania klas liczniejszych, takich jak **pop**, **rock** i **country**, zaś gorzej radzą sobie z klasami słabiej reprezentowanymi. Jest to widoczne szczególnie w przypadku klasy **traditional**, która ma najmniejszy support. Niska wartość macro F1 względem weighted F1 potwierdza, że skuteczność modeli nie jest równomierna dla wszystkich gatunków.
+
+### Wybór modelu dla TACV
+
+Ewaluacja błędów pokazuje, że **MuSeReNet był skuteczniejszym modelem niż pozostałe modele** w przeprowadzonym eksperymencie. Lepsze wyniki MuSeReNet sugerują, że reprezentacja piano-roll dobrze nadaje się do klasyfikacji gatunku muzycznego, ponieważ zachowuje strukturę czasowo-wysokościową utworu. Transformer osiągnął słabsze wyniki, szczególnie dla klasy jazz i traditional, co może wynikać z ograniczeń zastosowanej reprezentacji sekwencyjnej, konfiguracji modelu lub niewystarczającej ilości danych dla niektórych klas. 
+
+Głównym problemem było niezbalansowanie danych. Przy ponownej realizacji podobnego zadania warto jednak uwzględnić techniki ograniczające wpływ niezbalansowania, takie jak ważenie klas, oversampling, undersampling lub augmentacja danych. Mogłoby to poprawić rozpoznawanie klas mniejszościowych i zwiększyć stabilność wyników dla wszystkich gatunków.
+
+#### Interperowalność TACV
+
+W celu lepszego zrozumienia decyzji modelu zastosowano metodę **TCAV** (*Testing with Concept Activation Vectors*). Metoda ta pozwala sprawdzić, czy wybrane, zrozumiałe muzycznie koncepty wpływają na predykcję konkretnego gatunku. W analizie uwzględniono m.in. takie koncepty jak: wysoka lub niska gęstość nut, wysoki lub niski rejestr dźwięków, duża polifonia, regularność odstępów czasowych, długość nut, siła velocity oraz szeroki zakres wysokości dźwięków.
+
+
 
 ## Zużyte zasoby
+
+
 
 ## Wnioski
 
 * d
-
-
-
-
-
-
-
-
