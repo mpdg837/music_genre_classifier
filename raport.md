@@ -1,323 +1,429 @@
-# Raport finalny - Interpretowalność klasyfikatora gatunku na muzyce symbolicznej.
+# Raport finalny - interpretowalność klasyfikatora gatunku na muzyce symbolicznej
 
-Michał Podgajny 311412
-
-Miłosz Andryczuk 
-
-Aleksander Szymczyk
+Michał Podgajny 311412  
+Miłosz Andryczuk  
+Aleksander Szymczyk 325239
 
 ## Opis projektu
 
-Projekt polega na wytrenowaniu klasyfikatora gatunku na wybranych datasetach MIDI i zastosowaniu metod concept-based interpretability do analizy, które cechy model uznaje za charakterystyczne dla każdego gatunku. Inspiracją jest praca Foscarina et al. (2022), gdzie TCAV zastosowano do klasyfikacji kompozytorów. Projekt przenosi to podejście na gatunki, definiując odpowiednie koncepty muzyczne. Dodatkowym elementem jest porównanie "definicji gatunku" zakodowanych w różnych datasetach oraz analiza próbek błędnie sklasyfikowanych.
+Projekt dotyczy klasyfikacji gatunku muzycznego na podstawie plików MIDI oraz analizy tego, jakie cechy muzyczne model uznaje za charakterystyczne dla poszczególnych gatunków. Głównym celem nie było wyłącznie uzyskanie jak najwyższej skuteczności klasyfikacji, ale także przejście od samej predykcji do interpretacji decyzji modelu.
+
+Inspiracją była praca Foscarina et al. (2022), w której metoda TCAV została wykorzystana do interpretacji modeli rozpoznających kompozytorów. W tym projekcie analogiczny pomysł przeniesiono na klasyfikację gatunków muzycznych. Zamiast analizować pojedyncze nuty lub aktywacje bez znaczenia muzycznego, zdefiniowano zrozumiałe koncepty, takie jak wysoka gęstość nut, niski rejestr, długa średnia długość nut czy nieregularny rytm.
+
+W ramach projektu przygotowano pełny pipeline eksperymentalny:
+
+- pobranie i preprocessing danych MIDI,
+- ekstrakcję cech symbolicznych,
+- analizę eksploracyjną zbioru,
+- trening klasycznych modeli uczenia maszynowego,
+- trening modeli neuronowych opartych na piano-rollu i sekwencjach nut,
+- fine-tuning modelu MusicBERT,
+- analizę interpretowalności metodą TCAV.
 
 ## Funkcjonalność programu
 
-Tworzony system ma charakter narzędzia badawczo-eksperymentalnego wspierającego klasyfikację gatunków muzycznych na podstawie plików MIDI oraz analizę interpretowalności uzyskanych modeli. Funkcjonalności programu obejmują:
+System ma charakter badawczo-eksperymentalny. Jest uruchamiany z poziomu linii poleceń i konfigurowany za pomocą plików Hydra, co pozwala odtwarzać eksperymenty oraz porównywać różne warianty modeli.
 
-* wczytywanie i walidację plików MIDI pochodzących z wybranych datasetów,
+Najważniejsze funkcjonalności obejmują:
 
-* wstępne przetwarzanie danych symbolicznych oraz ich konwersję do wspólnej reprezentacji wykorzystywanej przez modele
+- wczytywanie i walidację plików MIDI,
+- konwersję plików MIDI do wspólnej reprezentacji numerycznej,
+- budowę zbiorów danych dla modeli klasycznych, MuSeReNet, Transformera i MusicBERT,
+- ekstrakcję cech muzycznych wykorzystywanych zarówno do klasyfikacji, jak i do definicji konceptów TCAV,
+- trening i ewaluację modeli klasyfikujących gatunek,
+- rejestrowanie wyników w Weights & Biases,
+- obsługę konfiguracji eksperymentów przez Hydra,
+- uruchamianie eksperymentów na klastrze przez skrypty Slurm,
+- analizę interpretowalności modelu metodą TCAV,
+- generowanie tabel, wykresów i podsumowań wyników.
 
-* ekstrakcję reprezentacji i cech muzycznych używanych w klasyfikacji oraz analizie interpretowalności
-
-* renowanie modeli bazowych oraz modeli sieci neuronowych do klasyfikacji gatunku muzycznego
-
-* ewaluację modeli z użyciem standardowych metryk klasyfikacyjnych oraz generowanie macierzy pomyłek
-
-* zarządzanie konfiguracją eksperymentów i rejestrowanie ich wyników w sposób reprodukowalny
-
-* zastosowanie metod concept-based interpretability, w szczególności TCAV, do analizy wpływu wybranych konceptów muzycznych na predykcje modelu
-
-* analizę błędnie sklasyfikowanych próbek oraz identyfikację potencjalnych przyczyn błędów
-
-* porównanie wyników uzyskanych na różnych datasetach MIDI, w tym analizę różnic w zakodowanych w nich cechach gatunkowych
-
-* generowanie wykresów, tabel oraz podsumowań wyników na potrzeby dokumentacji i prezentacji projektu
-  
-  Program jest uruchamiany z poziomu linii poleceń i konfigurowany za pomocą plików konfiguracyjnych, co pozwoliłóna wygodne odtwarzanie eksperymentów oraz porównywanie różnych wariantów modeli oraz ustawień. Część eksperymentów (analiza zbioru danych) realizowano z notatniku Jupyter Notebook.
+W przeprowadzonych eksperymentach wykorzystano jeden główny dataset, XMIDI. Architektura kodu pozwala natomiast na zastosowanie tego samego pipeline'u do kolejnych zbiorów MIDI, co byłoby naturalnym rozszerzeniem projektu w kierunku porównywania "definicji gatunku" zakodowanych w różnych datasetach.
 
 ## Użyte narzędzia
 
-Do przetwarzania plików MIDI zdecydowaliśmy się na wybór biblioteki partitura, ponieważ Foscarin et al. (2022) używa jej w swojej pracy. Ponadto jest ona częściej aktualizowana niż pretty_midi i miditoolkit
+Do przetwarzania plików MIDI wykorzystano bibliotekę `partitura`, ponieważ dobrze wspiera analizę muzyki symbolicznej i była zgodna z kierunkiem pracy Foscarina et al. W projekcie wykorzystano także:
 
-### Warstwa badawczo eksperymentalna
+- `pandas` i `numpy` - przetwarzanie danych tabelarycznych oraz numerycznych,
+- `partitura` - wczytywanie MIDI i ekstrakcja reprezentacji symbolicznych,
+- `scikit-learn` - modele klasyczne, metryki i klasyfikator CAV,
+- `PyTorch` - implementacja i trening modeli neuronowych,
+- `transformers` - integracja modelu MusicBERT przez Hugging Face,
+- `miditok` - tokenizacja MIDI do reprezentacji REMI dla MusicBERT,
+- `Captum` - implementacja TCAV,
+- `matplotlib` - wizualizacja wyników,
+- `Hydra` - zarządzanie konfiguracjami eksperymentów,
+- `Weights & Biases` - logowanie metryk i porównywanie runów,
+- `Slurm` - uruchamianie dłuższych eksperymentów na GPU,
+- `ruff`, `pytest`, `uv` i `make` - organizacja środowiska, formatowanie, testy i automatyzacja zadań.
 
-* **pandas** - przetwarzanie danych tabelarycznych oraz agregacja wyników eksperymentów
+## Dane
 
-* **partitura** - przetwarzanie plików MIDI oraz ekstrakcja reprezentacji symbolicznych i cech muzycznych wykorzystywanych w dalszej analizie
+Do eksperymentów wykorzystano zbiór **XMIDI**. Pliki MIDI mają etykiety gatunku oraz emocji, dzięki czemu można analizować zarówno cechy stylistyczne, jak i rozkład dodatkowych metadanych. W tym projekcie głównym zadaniem była klasyfikacja gatunku, dlatego etykiety emocji wykorzystano wyłącznie w analizie eksploracyjnej.
 
-* **pytorch** - implementacja, trenowanie i ewaluacja modeli sieci neuronowych do klasyfikacji gatunku muzycznego
+Aktualnie przetworzony zbiór użyty w eksperymentach zawiera **52 421 próbek**. Dane nie zawierają braków w kolumnach metadanych i nie zawierają zduplikowanych identyfikatorów `sample_id`.
 
-* **scikit-learn** - analiza wyników, obliczanie metryk ewaluacyjnych oraz implementacja modeli bazowych
+### Rozkład gatunków
 
-* **Captum** -  analiza interpretowalności modelu, w tym zastosowanie metod concept-based interpretability, takich jak TCAV
+Zbiór jest niezbalansowany. Najliczniejsze klasy to `rock`, `pop` i `country`, natomiast najmniej liczna jest klasa `traditional`.
 
-* **matplotlib** - wizualizacja wyników eksperymentów oraz rezultatów analizy
-  interpretowalności
+| Gatunek | Liczba próbek | Udział [%] |
+|---|---:|---:|
+| rock | 13 007 | 24.81 |
+| pop | 12 380 | 23.62 |
+| country | 11 539 | 22.01 |
+| jazz | 7 697 | 14.68 |
+| classical | 6 047 | 11.54 |
+| traditional | 1 751 | 3.34 |
 
-### Warstwa inżyniersko-organizacyjna
-
-* **hydra** - zarządzanie konfiguracją eksperymentów, hiperparametrami oraz wariantami uruchomień
-
-* **Weights & Biases (wanndb)** - monitorowanie eksperymentów oraz porównywanie wyników między uruchomieniami
-
-* **ruff** - statyczna analiza kodu oraz automatyczne formatowanie zgodne z przyjętym stylem projektu
-
-* **uv** - zarządzanie środowiskiem wirtualnym i zależnościami projektu na podstawie
-  pliku pyproject.toml
-
-* **make** - Oskryptowane uruchamianie najważniejszych zadań projektu, takich jak instalacja zależności, testy i linting
-
-* **pytest** 
-
-## Użyty dataset
-
-Do eksperymentów wykorzystano otwarty zbiór **XMIDI**. Z to dataset zawierający utwory muzyczne zapisane w formacie MIDI, przeznaczony do analizy symbolicznej muzyki. Dataset został dodatkowo opisany metadanymi, m.in. gatunkiem muzycznym i etykietą emocji, dzięki czemu może być wykorzystany do zadań klasyfikacji muzyki, analizy emocji oraz badania cech charakterystycznych różnych stylów muzycznych. 
-
-Notatnik związany z
-
-Analizowany dataset zawiera próbki muzyczne w formacie MIDI. Każda próbka posiada podstawowe metadane, takie jak gatunek muzyczny, przypisana emocja, identyfikator próbki, nazwa pliku oraz ścieżka do pliku źródłowego.
-
-W zbiorze znajduje się **108 023 próbek**. Dane są kompletne; nie stwierdzono brakujących wartości ani zduplikowanych identyfikatorów `sample_id`. Oznacza to, że dataset nadaje się do dalszej analizy.
-
-Utwory mogą należeć do jednego z 6 gatunków muzyki:
-
-- rock
-
-- pop
-
-- country
-
-- jazz
-
-- classical
-
-- traditional
-
-oraz do jednego z 11 rodzajów emocji: exciting, warm, happy, romantic, funny, sad, angry, lazy itd.
-
-### Rozkład gatunków muzycznych
-
-Analiza rozkładu gatunków wskazuje na to, że dataset nie jest równomiernie zbalansowany. Najwięcej próbek należy do gatunków rock, pop oraz country. Najsłabiej reprezentowany jest gatunek traditional, który stanowi tylko niewielką część całego zbioru.
-
-| Gatunek     | Liczba próbek | Udział w zbiorze [%] |
-| ----------- | ------------- | -------------------- |
-| rock        | 26 708        | 25                   |
-| pop         | 25 582        | 24                   |
-| country     | 23 551        | 22                   |
-| jazz        | 15 862        | 15                   |
-| classical   | 12 660        | 12                   |
-| traditional | 3 660         | 3                    |
-
-Procenty zaokrąglono do wartości całkowitych
+Nierównowaga klas jest jednym z głównych ograniczeń eksperymentu. Szczególnie problematyczna jest klasa `traditional`, która ma ponad siedmiokrotnie mniej próbek niż klasy `rock` lub `pop`.
 
 ### Rozkład emocji
 
-Podobne niezbalansowanie występuje również w przypadku etykiet emocji. Najczęściej pojawiającą się emocją jest exciting, natomiast najmniej liczną kategorią jest magnificent.
+Etykiety emocji nie były celem klasyfikacji, ale pokazują dodatkową strukturę datasetu.
 
-| Emocja      | Liczba próbek | Udział w zbiorze [%] |
-| ----------- | ------------- | -------------------- |
-| exciting    | 20 948        | 19                   |
-| warm        | 15 090        | 14                   |
-| happy       | 13 291        | 12                   |
-| romantic    | 12 886        | 12                   |
-| funny       | 12 565        | 12                   |
-| sad         | 9 038         | 8                    |
-| angry       | 8 739         | 8                    |
-| lazy        | 4 622         | 4                    |
-| quiet       | 4 431         | 4                    |
-| fear        | 3 621         | 3                    |
-| magnificent | 2 792         | 3                    |
+| Emocja | Liczba próbek | Udział [%] |
+|---|---:|---:|
+| exciting | 10 227 | 19.51 |
+| warm | 7 284 | 13.90 |
+| happy | 6 460 | 12.32 |
+| romantic | 6 182 | 11.79 |
+| funny | 6 076 | 11.59 |
+| sad | 4 396 | 8.39 |
+| angry | 4 244 | 8.10 |
+| lazy | 2 242 | 4.28 |
+| quiet | 2 117 | 4.04 |
+| fear | 1 772 | 3.38 |
+| magnificent | 1 421 | 2.71 |
 
-Procenty zaokrąglono do wartości całkowitych. W dalszej cześci zadania nie były analizowane te kategorie gdyż zadanie dotyczyło klasyfikacji gatunku nie emocji związanej z danym utworem.
+### Preprocessing
 
-### Cechy muzyczne próbek
+Każdy plik MIDI został wczytany i zapisany do formatu `.npz` zawierającego podstawowe informacje o nutach:
 
-Na podstawie danych MIDI wyznaczono zestaw cech opisujących strukturę muzyczną utworów. Obejmowały one między innymi liczbę nut, czas trwania utworu, gęstość nut, średnią polifonię, wysokości dźwięków, długości nut, wartości velocity oraz odstępy czasowe między zdarzeniami muzycznymi.
+- `pitch` - wysokość dźwięku,
+- `onset_sec` - czas rozpoczęcia nuty,
+- `duration_sec` - czas trwania nuty,
+- `velocity` - dynamika,
+- `track` - numer ścieżki,
+- `channel` - kanał MIDI.
 
-Średnio jedna próbka zawierała około 3519 nut, trwała około 176 sekund. Wartości te pokazują, że próbki są dość rozbudowane i zawierają dużą liczbę zdarzeń muzycznych.
+Na podstawie tych danych utworzono kilka reprezentacji:
 
-Te cechy przekonały nas do wykorzystania tego zbioru w ekspetymentach w ramach realizowanego projektu
+- **cechy tabularne** dla modeli klasycznych,
+- **piano-roll** dla MuSeReNet,
+- **macierz nut** dla MIDI Transformera,
+- **tokeny REMI** dla MusicBERT.
 
-### Różnice między gatunkami
+### Cechy muzyczne
 
-Porównanie cech między gatunkami wskazuje, że poszczególne style muzyczne różnią się pod względem struktury symbolicznej. 
+Dla modeli klasycznych oraz do definicji konceptów TCAV wyekstrahowano cechy opisujące strukturę muzyczną utworów:
 
-- Gatunek **pop** wyróżniał się wysoką liczbą nut i dużą gęstością zdarzeń muzycznych.
+- liczba nut,
+- czas trwania utworu,
+- gęstość nut,
+- średnia i maksymalna polifonia,
+- średnia, odchylenie i zakres wysokości dźwięków,
+- statystyki długości nut,
+- statystyki velocity,
+- średnia i odchylenie inter-onset interval,
+- histogram klas wysokości dźwięków.
 
-- Utwory **country** charakteryzował się relatywnie wysoką średnią polifonią, zaobserwowano wyraźna aktywność rytmiczna
+Analiza eksploracyjna pokazała, że cechy te niosą informację o gatunku, ale same nie rozdzielają klas idealnie. Na projekcji PCA klasy częściowo się nakładały, co potwierdza, że zadanie klasyfikacji jest nietrywialne.
 
-- **Classical** miał wyższą średnią wysokość dźwięków i dłuższe wartości rytmiczne
+Najważniejsze obserwacje z eksploracji danych:
 
-- Gatunek **traditional** cechował się niższą gęstością nut i spokojniejszym przebiegiem rytmicznym.
+- `pop` wyróżniał się wysoką liczbą nut i dużą gęstością zdarzeń,
+- `country` miał relatywnie wysoką średnią polifonię,
+- `classical` częściej wykazywał wyższy rejestr i dłuższe wartości rytmiczne,
+- `traditional` miał niższą gęstość nut i spokojniejszy przebieg,
+- `jazz` wykazywał większą zmienność wysokości dźwięków,
+- profile pitch-class różniły się między gatunkami, choć nie wystarczały do jednoznacznego rozróżnienia klas.
 
-- **Jazz** miał większa zmienność wysokości dźwięków
+Wygenerowane wykresy EDA znajdują się w katalogu `reports/figures/xmidi_eda`.
 
-- **Country** miał większa zmienność wysokości dźwięków
+## Reprezentacje wejściowe
 
-Wyniki pokazują, że cechy symboliczne mogą być przydatne w rozróżnianiu gatunków. Jednocześnie różnice nie są na tyle wyraźne, aby całkowicie oddzielić klasy od siebie. Oznacza to, że klasyfikacja gatunku wymaga bardziej złożonego podejścia niż tylko analiza pojedynczych statystyk. 
+### Cechy tabularne
 
-### Analiza tonalna
+Modele klasyczne otrzymują jeden wektor cech dla całego utworu. Jest to reprezentacja mało kosztowna obliczeniowo i łatwa do interpretacji, ale traci szczegółową informację o kolejności zdarzeń muzycznych.
 
-W analizie wykorzystano również rozkłady klas wysokości dźwięków, czyli **pitch-class profiles**. Pozwalają one określić, jak często w utworze pojawiają się poszczególne klasy dźwięków niezależnie od oktawy. W takim podejściu dźwięki są sprowadzane do dwunastu klas wysokości odpowiadających dźwiękom skali chromatycznej, niezależnie od oktawy. Oznacza to, że np. wszystkie dźwięki C występujące w różnych oktawach są traktowane jako ta sama klasa wysokości. Analiza pitch-class pozwala określić, które klasy dźwięków występują w utworach najczęściej. Jest to istotne, ponieważ różne gatunki muzyczne mogą wykazywać odmienne preferencje tonalne i harmoniczne.
+### Piano-roll
 
-| Gatunek     | Najsilniejsze klasy wysokości | Interpretacja                                                            |
-| ----------- | ----------------------------- | ------------------------------------------------------------------------ |
-| classical   | D, G, C, A                    | rozkład stosunkowo równomierny, bez bardzo silnej dominacji jednej klasy |
-| country     | F#/Gb, D, C, B                | bardzo wyraźna dominacja klasy F#/Gb                                     |
-| jazz        | F#/Gb, C, D, A                | profil tonalny z dominacją F#/Gb, ale mniej skrajny niż w country i pop  |
-| pop         | F#/Gb, C, D, A                | silna dominacja F#/Gb                                                    |
-| rock        | F#/Gb, D, C, E                | przewaga F#/Gb oraz D i C                                                |
-| traditional | D, G, C, A                    | dominują D, G i C; profil zbliżony do classical                          |
+Reprezentacja piano-roll opisuje aktywność wysokości dźwięków w czasie. Oś pozioma odpowiada czasowi, a oś pionowa wysokościom MIDI. Taka reprezentacja zachowuje lokalne wzorce melodyczno-rytmiczne i może być traktowana podobnie do obrazu, dlatego dobrze pasuje do modeli konwolucyjnych.
 
-Analiza pitch-class wykazała, że poszczególne gatunki różnią się średnim rozkładem klas wysokości dźwięków. W gatunkach country, pop, jazz i rock największy udział miała klasa F#/Gb, natomiast w gatunkach classical i traditional dominowała klasa D. Oznacza to, że gatunki różnią się nie tylko cechami rytmicznymi i statystycznymi, takimi jak liczba nut czy gęstość.
+W projekcie piano-roll wykorzystano jako wejście modelu MuSeReNet.
 
-Zaobserwowano, że różne gatunki wykazują odmienne profile tonalne. Oznacza to, że informacja o rozkładzie wysokości dźwięków może być użyteczna jako dodatkowa cecha w klasyfikacji muzyki. Estymowana tonacja została potraktowana jako cecha pomocnicza, ponieważ opisuje ogólne centrum tonalne utworu, ale sama nie wystarcza do jednoznacznego określenia gatunku.
+### Macierz nut
 
-### Reprezenacja piano-roll
+Dla MIDI Transformera każdy utwór reprezentowany jest jako sekwencja nut. Każda nuta opisana jest sześcioma cechami:
 
-Reprezentacja piano-roll pokazuje rozmieszczenie nut w czasie. Oś pozioma odpowiada kolejnym momentom utworu, natomiast oś pionowa reprezentuje wysokości dźwięków. W porównaniu z cechami statystycznymi piano-roll dostarcza bardziej szczegółowej informacji o przebiegu utworu. Przykładowo dwie próbki mogą mieć podobną liczbę nut, podobny czas trwania i zbliżoną gęstość, ale różnić się sposobem rozmieszczenia tych nut w czasie.
+| Cecha | Znaczenie |
+|---|---|
+| `pitch` | wysokość dźwięku MIDI |
+| `onset_sec` | czas rozpoczęcia nuty |
+| `duration_sec` | czas trwania nuty |
+| `velocity` | dynamika |
+| `track` | numer ścieżki |
+| `channel` | kanał MIDI |
 
-W analizowanych przykładach piano-roll pozwolił zauważyć różnice w charakterze przebiegu muzycznego między gatunkami:
+Sekwencje mają różną długość, dlatego są przycinane lub uzupełniane paddingiem do stałej długości `max_notes`. Model otrzymuje także maskę wskazującą rzeczywiste nuty.
 
-| Gatunek     | Obserwacje w piano-roll                                                                              | Interpretacja                                                            |
-| ----------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| classical   | większa zmienność wysokości dźwięków, bardziej rozbudowany przebieg melodi, częstsze zmiany rejestru | utwory mają bardziej złożoną strukturę i mniej schematyczny przebieg     |
-| jazz        | duża zmienność wysokości, nieregularne układy nut, bardziej swobodny przebieg                        | widoczna większa improwizacyjność i złożoność rytmiczno-melodyczna       |
-| pop         | bardziej regularne rozmieszczenie nut, powtarzalne ciągi nut, wyraźniejsze schematy rytmiczne        | struktura jest bardziej uporządkowana i oparta na powtarzalnych motywach |
-| rock        | powtarzalne układy, częstsze zwarte grupy nut, stabilniejszy przebieg                                | widoczne są regularne wzorce                                             |
-| country     | regularny przebieg, powtarzalne fragmenty, umiarkowana złożoność melodyczna                          | struktura jest uporządkowana, z wyraźnymi schematami                     |
-| traditional | mniejsza gęstość nut, wolniejszy przebieg, mniej złożone układy                                      | utwory mają prostszą i bardziej stabilną strukturę czasową               |
+### REMI i MusicBERT
 
-W kontekście dalszego modelowania oznacza to, że reprezentacja piano-roll może być użyteczna jako wejście dla modeli analizujących dane sekwencyjne lub obrazowe. Pozwala ona zachować informację o kolejności zdarzeń muzycznych, relacjach ⁠Andruczyk Miłosz czasowych między nutami oraz powtarzalności motywów. Dzięki temu może uzupełniać cechy statystyczne i tonalne, które opisują utwór bardziej ogólnie, ale nie pokazują jego przebiegu w czasie.
+MusicBERT wymaga tokenizacji MIDI do reprezentacji symbolicznej. W projekcie użyto tokenizacji REMI, która zamienia muzykę na sekwencję tokenów opisujących między innymi pozycje rytmiczne, wysokości, długości i velocity. Długie utwory są dzielone na okna tokenów. W treningu stosowane jest przycinanie do maksymalnej długości, a w ewaluacji deterministyczne okna, dzięki czemu model może oceniać dłuższe pliki w bardziej stabilny sposób.
 
-### Korelacje i PCA
+## Modele
 
-Analiza korelacji wykazała, że część cech jest ze sobą silnie powiązana. Dotyczy to między innymi liczby nut i gęstości nut, a także cech opisujących długości nut oraz odstępy czasowe między zdarzeniami muzycznymi. Oznacza to, że niektóre zmienne mogą przenosić podobną informację.
+### Modele klasyczne
 
-Analiza PCA pokazała, że dwie pierwsze składowe główne wyjaśniają jedynie około **26,7% wariancji**. Na wykresie PCA gatunki częściowo się nakładały, co oznacza, że nie da się ich łatwo rozdzielić przy użyciu tylko dwóch głównych wymiarów.
+Jako punkt odniesienia wykorzystano modele trenowane na cechach tabularnych:
 
-Wyniki PCA potwierdzają, że problem klasyfikacji gatunków jest złożony. **Cechy statystyczne dostarczają użytecznych informacji, ale same nie pozwalają na jednoznaczne rozdzielenie wszystkich gatunków.**
+- Logistic Regression,
+- Linear SVC,
+- SVC,
+- KNN,
+- Random Forest,
+- MLP.
 
-## Implementacja modeli
+Ich celem było sprawdzenie, ile informacji o gatunku da się odzyskać z prostych, ręcznie zaprojektowanych cech symbolicznych.
 
-W ramach projektu zaimplementowano kilka podejść do klasyfikacji danych muzycznych ze zbioru XMIDI. Modele można podzielić na dwie główne grupy: modele bazowe, wykorzystujące wcześniej wyekstrahowane cechy statystyczne i tonalne, oraz modele neuronowe, które korzystają zarówno z cech tabularnych, jak i reprezentacji czasowych utworów.
+### MuSeReNet
 
-Celem zastosowania różnych typów modeli było porównanie, na ile skuteczna jest klasyfikacja oparta wyłącznie na cechach zagregowanych, a na ile potrzebne są bardziej złożone reprezentacje muzyki, takie jak piano-roll lub reprezentacja sekwencyjna wykorzystywana przez modele transformerowe.
+MuSeReNet jest modelem konwolucyjnym działającym na piano-rollu. Model analizuje lokalne wzorce w przebiegu utworu, takie jak powtarzalne motywy, zagęszczenia nut, zmiany rejestru i fragmenty o większej polifonii. W projekcie przetestowano wariant bazowy oraz większy wariant modelu.
 
-Jak modele bazowe użyto:
+### MIDI Transformer
 
-- **Logistic Regression** - pełniła rolę prostego modelu referencyjnego. Model ten jest łatwy do interpretacji, dlatego może służyć jako punkt odniesienia dla bardziej złożonych metod.
+MIDI Transformer analizuje sekwencję nut opisaną cechami numerycznymi. W założeniu powinien modelować relacje czasowe między zdarzeniami muzycznymi. W praktyce długie sekwencje MIDI i duża liczba nut w utworach okazały się trudne dla modelu trenowanego od zera.
 
-- **Random Forest** - zastosowano jako nieliniowy model bazowy.
+### MusicBERT
 
-- **SVM**
+MusicBERT jest modelem wstępnie trenowanym na muzyce symbolicznej. W projekcie użyto go przez Hugging Face, dodając własną głowicę klasyfikacyjną do predykcji gatunku. Przetestowano dwa warianty:
 
-- **KNN**
+- **MusicBERT full fine-tuning** - aktualizowane są wagi encodera i głowicy,
+- **MusicBERT frozen head** - encoder jest zamrożony, trenowana jest głównie głowica klasyfikacyjna.
 
-- **Linear SVC**
+Pełny fine-tuning MusicBERT dał najlepszy wynik, ale był zdecydowanie najbardziej kosztowny obliczeniowo.
 
-Oprócz modeli klasycznych zaimplementowano również modele neuronowe. Ich zadaniem było sprawdzenie, czy bardziej złożone architektury są w stanie lepiej wykorzystać strukturę danych muzycznych:
+## Ewaluacja modeli
 
-- **MLP** na wyekstrachowanych cechach - wielstwowa sieć neuronowa; stanowi naturalne rozszerzenie podejścia tabularnego.
+Modele oceniano na tym samym zbiorze walidacyjnym zawierającym **10 485 przykładów**. Ze względu na silne niezbalansowanie klas główną metryką porównawczą jest **macro F1**, ponieważ traktuje wszystkie klasy równorzędnie i nie jest zdominowana przez najliczniejsze gatunki.
 
-- CNN **MuSeReNET** w którym jako wejście wykorzystano reprezentację **piano-roll** - dzięki temu model CNN może wykrywać lokalne wzorce w przebiegu utworu, takie jak powtarzalne motywy rytmiczne, układy melodyczne czy fragmenty o zwiększonej polifonii.
+Dla modeli neuronowych raportowane są najlepsze wartości `val_f1_macro` zaobserwowane w trakcie treningu, a nie wyłącznie wynik z ostatniej epoki.
 
-- Transformer w którym jako wejście ustanowiono sekwencje zdarzeń muzycznych - W przeciwieństwie do modeli opartych wyłącznie na cechach statystycznych, pozwala analizować kolejność i relacje między zdarzeniami muzycznymi
+| Model / run | Reprezentacja | Best val macro-F1 | Epoka | Val accuracy |
+|---|---|---:|---:|---:|
+| MusicBERT full fine-tuning | REMI tokens | **0.588** | 5 | 0.622 |
+| Random Forest | cechy tabularne | **0.562** | - | 0.614 |
+| MuSeReNet, większy wariant | piano-roll | **0.507** | 36 | 0.551 |
+| MuSeReNet, wariant bazowy | piano-roll | **0.485** | 46 | 0.531 |
+| MusicBERT frozen head | REMI tokens | **0.456** | 4 | 0.507 |
+| SVC | cechy tabularne | **0.450** | - | 0.471 |
+| MLP | cechy tabularne | **0.436** | - | 0.485 |
+| KNN | cechy tabularne | **0.431** | - | 0.472 |
+| Logistic Regression | cechy tabularne | **0.395** | - | 0.412 |
+| Linear SVC | cechy tabularne | **0.389** | - | 0.440 |
+| MIDI Transformer | sekwencja nut | **0.387** | 20 | 0.465 |
 
-Dla modelu transformerowego zastosowano reprezentację sekwencyjną opartą bezpośrednio na zdarzeniach muzycznych zapisanych w danych MIDI. Każdy utwór reprezentowany jest jako macierz nut o wymiarze 
+Najlepszy wynik uzyskał MusicBERT po pełnym fine-tuningu. Potwierdza to wartość wykorzystania wstępnie trenowanych encoderów dla muzyki symbolicznej. Jednocześnie bardzo dobry wynik Random Forest pokazuje, że ręcznie zaprojektowane cechy symboliczne zawierają dużo informacji o gatunku. Jest to ważne także z punktu widzenia interpretowalności, ponieważ te same cechy można wykorzystać do definiowania muzycznych konceptów.
 
-` max_notes * 6 `
+### Modele klasyczne
 
-gdzie `max_notes` oznacza maksymalną liczbę nut branych pod uwagę z jednej próbki, natomiast każda nuta opisana jest sześcioma cechami.
+| Model | Train accuracy | Val accuracy | Train macro-F1 | Val macro-F1 | Różnica F1 |
+|---|---:|---:|---:|---:|---:|
+| Random Forest | 0.996 | 0.614 | 0.996 | 0.562 | 0.434 |
+| SVC | 0.511 | 0.471 | 0.497 | 0.450 | 0.047 |
+| MLP | 0.588 | 0.485 | 0.537 | 0.436 | 0.101 |
+| KNN | 0.605 | 0.472 | 0.557 | 0.431 | 0.125 |
+| Logistic Regression | 0.420 | 0.412 | 0.400 | 0.395 | 0.005 |
+| Linear SVC | 0.442 | 0.440 | 0.390 | 0.389 | 0.001 |
 
-| Cecha          | Znaczenie                              |
-| -------------- | -------------------------------------- |
-| `pitch`        | wysokość dźwięku MIDI                  |
-| `onset_sec`    | czas rozpoczęcia nuty w sekundach      |
-| `duration_sec` | czas trwania nuty                      |
-| `velocity`     | dynamika dźwięku, czyli siła uderzenia |
-| `track`        | numer ścieżki MIDI                     |
-| `channel`      | kanał MIDI                             |
+Random Forest uzyskał najlepszy wynik wśród modeli klasycznych, ale bardzo duża różnica między wynikiem treningowym i walidacyjnym wskazuje na overfitting. SVC osiągnął niższy wynik, ale generalizował stabilniej. Modele liniowe miały najmniejszą różnicę między treningiem i walidacją, ale były zbyt proste, aby uchwycić bardziej złożone zależności.
 
-Wiersze macierzy odpowiadają kolejnym nutom w utworze, dzięki czemu model analizuje muzykę jako sekwencję zdarzeń, a nie jako zestaw zagregowanych statystyk. Reprezentacja ta zachowuje informacje o kolejności nut, czasie ich rozpoczęcia, długości trwania oraz dynamice.
+### MuSeReNet i Transformer
 
-Ponieważ próbki mają różną liczbę nut, sekwencje są przycinane lub uzupełniane zerami do stałej długości `max_notes`. Dodatkowo stosowana jest maska wskazująca, które pozycje odpowiadają rzeczywistym nutom, a które są paddingiem.
+| Metryka | MuSeReNet bazowy | MIDI Transformer |
+|---|---:|---:|
+| Accuracy | 0.53 | 0.46 |
+| Macro precision | 0.50 | 0.40 |
+| Macro recall | 0.48 | 0.39 |
+| Macro F1 | 0.48 | 0.39 |
+| Weighted F1 | 0.52 | 0.45 |
 
-Przed przekazaniem do modelu cechy są normalizowane, a następnie każda nuta jest przekształcana do wewnętrznej reprezentacji transformera. Dodawane jest także kodowanie pozycyjne, które pozwala modelowi uwzględnić kolejność zdarzeń i analizować zależności między nutami w czasie.
+MuSeReNet był wyraźnie skuteczniejszy niż testowany MIDI Transformer. Sugeruje to, że w tej konfiguracji reprezentacja piano-roll była łatwiejsza do wykorzystania niż długa sekwencja nut. Transformer miał szczególnie duży problem z klasami `jazz` i `traditional`.
 
-Implementacje te znajdują się w folderze scripts
+| Gatunek | Support | MuSeReNet F1 | Transformer F1 | Różnica |
+|---|---:|---:|---:|---:|
+| classical | 1 209 | 0.62 | 0.63 | -0.01 |
+| country | 2 308 | 0.54 | 0.49 | +0.05 |
+| jazz | 1 540 | 0.52 | 0.26 | +0.26 |
+| pop | 2 476 | 0.52 | 0.48 | +0.04 |
+| rock | 2 602 | 0.53 | 0.47 | +0.06 |
+| traditional | 350 | 0.15 | 0.00 | +0.15 |
 
-## Ewaluacja modeli wraz z opisem błędów
+Najtrudniejszą klasą była `traditional`. Ma ona najmniejszy support i oba modele miały problem z jej rozpoznaniem. Niska wartość macro F1 względem weighted F1 potwierdza, że modele radzą sobie lepiej z klasami liczniejszymi niż z klasą mniejszościową.
 
-Modele zostały ocenione na tym samym zbiorze walidacyjnym zawierającym **10 485 przykładów**. Na jej podstawie uzyskano poniższe wartości metryk
+### MusicBERT
 
-### Modele proste (bazowe + MLP)
+MusicBERT uzyskał najlepszy wynik całego projektu:
 
-W pierwszym etapie eksperymentów porównano klasyczne modele uczenia maszynowego oraz prosty model MLP trenowany na wyekstrahowanych cechach muzycznych. Modele korzystały z reprezentacji tabularnej, czyli z wcześniej obliczonych cech opisujących próbkę jako pojedynczy wektor liczbowy.
+- best val macro-F1: **0.588**,
+- val accuracy: **0.622**,
+- najlepsza zaobserwowana epoka: **5**.
 
-| Model               | Train accuracy | Accuracy | Treningowe F1 | F1 na zbiorze walidacyjnym | Różnica F1 |
-| ------------------- | -------------- | -------- | ------------- | -------------------------- | ---------- |
-| Random Forest       | 0.996          | 0.614    | 0.996         | 0.562                      | 0.434      |
-| SVM                 | 0.511          | 0.471    | 0.497         | 0.450                      | 0.047      |
-| MLP                 | 0.588          | 0.485    | 0.537         | 0.436                      | 0.101      |
-| KNN                 | 0.605          | 0.472    | 0.557         | 0.431                      | 0.125      |
-| Logistic Regression | 0.420          | 0.412    | 0.400         | 0.395                      | 0.005      |
-| Linear SVC          | 0.442          | 0.440    | 0.390         | 0.389                      | 0.001      |
+Wynik ten był lepszy od Random Forest o około 0.027 macro-F1 oraz od bazowego MuSeReNet o około 0.103 macro-F1. Poprawa nie była jednak darmowa: pełny fine-tuning MusicBERT był najbardziej kosztownym eksperymentem i wymagał długiego czasu treningu na GPU. Wariant z zamrożonym encoderem był tańszy i bardziej stabilny organizacyjnie, ale osiągnął niższy wynik macro-F1 równy 0.456.
 
-Najlepszy wynik walidacyjny uzyskał **Random Forest**, osiągając accuracy = 0.614 oraz F1 = 0.562. Jest to najwyższy wynik spośród analizowanych modeli bazowych. Jednocześnie bardzo wysoki wynik na zbiorze treningowym, bliski 1.0, wskazuje na silne dopasowanie modelu do danych treningowych. Różnica między treningowym F1 a F1 na zbiorze walidacyjnym wyniosła aż 0.434, co sugeruje wyraźny overfitting.
+## Analiza błędów
 
-Drugim najlepszym modelem pod względem macro F1 był **SVM**, który uzyskał F1 = 0.450 na zbiorze walidacyjnym. Wynik ten był niższy niż dla Random Forest, ale różnica między wynikiem treningowym i walidacyjnym była znacznie mniejsza. Oznacza to, że SVM generalizował stabilniej, choć jego skuteczność była ograniczona.
+Najważniejszym źródłem błędów była nierównowaga klas. Klasa `traditional` stanowi tylko 3.34% zbioru, co przekłada się na niski support w walidacji i bardzo słabe wyniki dla tej klasy. Modele częściej poprawnie rozpoznawały klasy liczne, takie jak `rock`, `pop` i `country`.
 
-Model **MLP** osiągnął accuracy = 0.485 oraz F1 = 0.436 na zbiorze walidacyjnym. Wynik był zbliżony do KNN i SVC, ale widoczna była większa różnica między zbiorem treningowym a walidacyjnym niż w przypadku modeli liniowych. Sugeruje to, że MLP częściowo dopasował się do danych treningowych, ale nie przełożyło się to na wyraźnie lepszą jakość klasyfikacji.
+Drugim problemem jest częściowe nakładanie się cech muzycznych między gatunkami. Analiza PCA oraz wyniki modeli klasycznych pokazują, że cechy symboliczne są informatywne, ale nie tworzą prostych, liniowo rozdzielnych grup. Dotyczy to szczególnie gatunków popularnych, które mogą dzielić podobne schematy rytmiczne, rejestry i gęstości nut.
 
-**KNN** uzyskał F1 = 0.431 na zbiorze walidacyjnym, czyli wynik porównywalny z MLP. Model osiągnął stosunkowo wysokie wyniki na treningu, ale gorsze na walidacji, co wskazuje, że lokalne podobieństwa między próbkami nie były wystarczające do stabilnego rozróżniania gatunków.
+W praktyce oznacza to, że błędne klasyfikacje nie wynikają wyłącznie z niedoskonałości architektury, ale także z natury danych: gatunki muzyczne nie są kategoriami ostro oddzielonymi, a dataset może kodować uproszczone lub specyficzne dla źródła definicje gatunków.
 
-Najniższe wyniki uzyskały modele liniowe: **Logistic Regression** oraz **Linear SVC**. Ich wartości F1 na walidacji wyniosły odpowiednio 0.395 i 0.389. Jednocześnie różnice między wynikami treningowymi i walidacyjnymi były bardzo małe, co oznacza, że modele te nie przeuczyły się, ale były zbyt proste, aby uchwycić bardziej złożone zależności między cechami a gatunkiem muzycznym.
+## Interpretowalność TCAV
 
-### Modele złożone (Transformer oraz MuSeReNet)
+Do interpretacji modelu wykorzystano metodę **TCAV** (*Testing with Concept Activation Vectors*). TCAV sprawdza, czy przesunięcie reprezentacji modelu w kierunku określonego konceptu zwiększa wynik dla danej klasy. Dzięki temu można pytać model o pojęcia zrozumiałe muzycznie, np. czy wysoka gęstość nut wspiera klasyfikację jako `pop`.
 
-W pierwszym etapie eksperymentów zastosowano metody bazowe, takie jak Logistic Regression oraz Random Forest, trenowane na wyekstrahowanych cechach statystycznych i tonalnych. Modele te stanowiły punkt odniesienia dla dalszych badań, jednak uzyskane wyniki nie były w pełni satysfakcjonujące. Z tego powodu w kolejnym etapie zdecydowano się zastosować modele neuronowe, które mogą korzystać z bogatszych reprezentacji muzyki.
+### Koncepty
 
-| Metryka         | MuSeReNet | MIDI Transformer |
-| --------------- | --------- | ---------------- |
-| Accuracy        | 0.53      | 0.46             |
-| Macro precision | 0.50      | 0.40             |
-| Macro recall    | 0.48      | 0.39             |
-| Macro F1        | 0.48      | 0.39             |
-| Weighted F1     | 0.52      | 0.45             |
+Koncepty zdefiniowano na podstawie cech symbolicznych:
 
-**MuSeReNet** osiągnął lepsze wyniki we wszystkich głównych metrykach. Różnica w accuracy wynosi **0.07**, natomiast różnica w macro F1 wynosi **0.09**. Oznacza to, że model konwolucyjny oparty na piano-rollu lepiej wykorzystywał strukturę danych muzycznych niż transformer zastosowany w tej konfiguracji. Jednocześnie wartości macro F1 pokazują, że oba modele nadal miały duże problemy z równomiernym rozpoznawaniem wszystkich klas. Uzyskano też wyniki dla poszczególnych gatunków:
+- `high_note_density` i `low_note_density`,
+- `high_polyphony`,
+- `wide_pitch_range`,
+- `high_pitch_register` i `low_pitch_register`,
+- `strong_velocity`,
+- `long_notes` i `short_notes`,
+- `irregular_ioi` i `regular_ioi`.
 
-| Gatunek     | Ilość próbek | MuSeReNet F1 | Transformer F1 | Różnica F1 |
-| ----------- | ------------ | ------------ | -------------- | ---------- |
-| classical   | 1 209        | 0.62         | 0.63           | -0.01      |
-| country     | 2 308        | 0.54         | 0.49           | +0.05      |
-| jazz        | 1 540        | 0.52         | 0.26           | +0.26      |
-| pop         | 2 476        | 0.52         | 0.48           | +0.04      |
-| rock        | 2 602        | 0.53         | 0.47           | +0.06      |
-| traditional | 350          | 0.15         | 0.00           | +0.15      |
+Dla każdego konceptu utworzono manifest próbek reprezentujących dany ogon rozkładu cechy. Następnie porównywano je z losowymi kontrolami. CAV był trenowany jako liniowy klasyfikator rozdzielający koncept od kontroli.
 
-Największą różnicę między modelami zaobserwowano dla klasy **jazz**. MuSeReNet uzyskał dla niej **F1 = 0.52**, natomiast MIDI Transformer tylko **F1 = 0.26**. Sugeruje to, że reprezentacja piano-roll była skuteczniejsza w uchwyceniu wzorców charakterystycznych dla jazzu, takich jak zmienność wysokości dźwięków i bardziej złożona struktura czasowa.
+### Konfiguracja TCAV
 
-Jedyną klasą, w której transformer uzyskał minimalnie lepszy wynik, była klasa **classical**. Różnica była jednak bardzo mała: **F1 = 0.63** dla transformera wobec **F1 = 0.62** dla MuSeReNet, dlatego nie można traktować jej jako istotnej przewagi.
+Ukończoną analizę TCAV przeprowadzono dla modelu MuSeReNet. Ewaluowano dwie warstwy klasyfikatora:
 
-Największym problemem obu modeli była klasa **traditional**. Jest to najmniej liczna klasa w zbiorze walidacyjnym — zawiera tylko **350 przykładów**. MIDI Transformer w ogóle nie rozpoznał tej klasy poprawnie, uzyskując zerowe precision ,recall oraz F1. MuSeReNet poradził sobie nieco lepiej, ale wynik **F1 = 0.15** nadal jest bardzo niski. Wyniki wskazują, że modele mają tendencję do lepszego rozpoznawania klas liczniejszych, takich jak **pop**, **rock** i **country**, zaś gorzej radzą sobie z klasami słabiej reprezentowanymi. Jest to widoczne szczególnie w przypadku klasy **traditional**, która ma najmniejszy support. Niska wartość macro F1 względem weighted F1 potwierdza, że skuteczność modeli nie jest równomierna dla wszystkich gatunków.
+- `classifier.1`,
+- `classifier.2`.
 
-Ewaluacja błędów pokazuje, że **MuSeReNet był skuteczniejszym modelem niż złożone pozostałe modele** w przeprowadzonym eksperymencie. Lepsze wyniki MuSeReNet sugerują, że reprezentacja piano-roll dobrze nadaje się do klasyfikacji gatunku muzycznego, ponieważ zachowuje strukturę czasowo-wysokościową utworu. Transformer osiągnął słabsze wyniki, szczególnie dla klasy jazz i traditional, co może wynikać z ograniczeń zastosowanej reprezentacji sekwencyjnej, konfiguracji modelu lub niewystarczającej ilości danych dla niektórych klas. 
+Łącznie wykonano **132 testy**:
 
-Głównym problemem było niezbalansowanie danych. Przy ponownej realizacji podobnego zadania warto jednak uwzględnić techniki ograniczające wpływ niezbalansowania, takie jak ważenie klas, oversampling, undersampling lub augmentacja danych. Mogłoby to poprawić rozpoznawanie klas mniejszościowych i zwiększyć stabilność wyników dla wszystkich gatunków.
+- 11 konceptów,
+- 6 klas,
+- 2 warstwy.
 
-#### Interperowalność TACV
+Każdy koncept porównano z 10 losowymi kontrolami. Do oceny istotności wykorzystano test statystyczny względem wartości 0.5 oraz skorygowany próg istotności `alpha = 0.000379`.
 
-W celu lepszego zrozumienia decyzji modelu zastosowano metodę **TCAV** (*Testing with Concept Activation Vectors*). Metoda ta pozwala sprawdzić, czy wybrane, zrozumiałe muzycznie koncepty wpływają na predykcję konkretnego gatunku. W analizie uwzględniono m.in. takie koncepty jak: wysoka lub niska gęstość nut, wysoki lub niski rejestr dźwięków, duża polifonia, regularność odstępów czasowych, długość nut, siła velocity oraz szeroki zakres wysokości dźwięków.
+### Wyniki TCAV
 
+Spośród 132 testów **20 było istotnych statystycznie**:
 
+- 10 pozytywnych,
+- 10 negatywnych,
+- wszystkie istotne wyniki pojawiły się w warstwie `classifier.1`,
+- dla `classifier.2` nie uzyskano istotnych wyników po korekcji.
+
+| Gatunek | Koncept | Warstwa | Mean sign count | Kierunek |
+|---|---|---|---:|---|
+| classical | high_pitch_register | classifier.1 | 0.938 | pozytywny |
+| classical | irregular_ioi | classifier.1 | 0.953 | pozytywny |
+| classical | long_notes | classifier.1 | 0.952 | pozytywny |
+| classical | low_note_density | classifier.1 | 0.898 | pozytywny |
+| country | high_note_density | classifier.1 | 0.271 | negatywny |
+| country | low_pitch_register | classifier.1 | 0.687 | pozytywny |
+| country | regular_ioi | classifier.1 | 0.288 | negatywny |
+| jazz | high_note_density | classifier.1 | 0.191 | negatywny |
+| jazz | high_pitch_register | classifier.1 | 0.189 | negatywny |
+| jazz | low_note_density | classifier.1 | 0.150 | negatywny |
+| jazz | short_notes | classifier.1 | 0.174 | negatywny |
+| pop | high_note_density | classifier.1 | 0.839 | pozytywny |
+| pop | high_pitch_register | classifier.1 | 0.221 | negatywny |
+| pop | long_notes | classifier.1 | 0.221 | negatywny |
+| rock | high_polyphony | classifier.1 | 0.261 | negatywny |
+| rock | long_notes | classifier.1 | 0.214 | negatywny |
+| rock | short_notes | classifier.1 | 0.744 | pozytywny |
+| rock | strong_velocity | classifier.1 | 0.692 | pozytywny |
+| traditional | high_pitch_register | classifier.1 | 0.791 | pozytywny |
+| traditional | long_notes | classifier.1 | 0.721 | pozytywny |
+
+Wyniki są zgodne z częścią obserwacji z analizy eksploracyjnej. Dla `pop` istotnie pozytywny był koncept wysokiej gęstości nut. Dla `rock` pozytywny wpływ miały krótsze nuty i silniejsze velocity. Dla `classical` model był wrażliwy na wysoki rejestr, długie nuty, niższą gęstość oraz nieregularność odstępów czasowych. Dla `traditional` istotne były długie nuty i wyższy rejestr.
+
+Należy jednak podkreślić, że TCAV opisuje **wrażliwość konkretnego modelu**, a nie obiektywną definicję gatunku muzycznego. Wyniki mówią więc, jakie koncepty MuSeReNet wykorzystuje w swoich reprezentacjach, a nie które cechy są uniwersalnie charakterystyczne dla gatunków.
+
+### Wizualizacje TCAV
+
+Poniżej umieszczono najważniejsze wykresy wygenerowane dla analizy TCAV. Heatmapy pokazują średnie wyniki TCAV dla konceptów, klas i warstw, natomiast wykresy słupkowe pozwalają prześledzić najważniejsze koncepty dla konkretnych gatunków.
+
+**Rysunek 1. Zbiorcza heatmapa TCAV dla analizowanych warstw**
+
+![Zbiorcza heatmapa TCAV](reports/tcav/tcav_heatmap_all_layers_mean.png)
+
+**Rysunek 2. Heatmapa TCAV dla warstwy `classifier.1`**
+
+![Heatmapa TCAV dla classifier.1](reports/tcav/tcav_heatmap_classifier_1.png)
+
+Warstwa `classifier.1` była najważniejsza interpretacyjnie, ponieważ wszystkie istotne statystycznie wyniki po korekcji pojawiły się właśnie w tej warstwie. Dlatego poniżej pokazano przykłady najciekawszych klas.
+
+**Rysunek 3. Najważniejsze koncepty dla klasy `classical`**
+
+![Najważniejsze koncepty TCAV dla classical](reports/tcav/tcav_top_concepts_classifier_1_classical.png)
+
+Dla klasy `classical` model był szczególnie wrażliwy na długie nuty, wysoki rejestr, niższą gęstość nut oraz nieregularne odstępy czasowe.
+
+**Rysunek 4. Najważniejsze koncepty dla klasy `pop`**
+
+![Najważniejsze koncepty TCAV dla pop](reports/tcav/tcav_top_concepts_classifier_1_pop.png)
+
+Dla klasy `pop` najwyraźniejszym pozytywnym konceptem była wysoka gęstość nut, natomiast długie nuty i wysoki rejestr działały w kierunku przeciwnym.
+
+**Rysunek 5. Najważniejsze koncepty dla klasy `rock`**
+
+![Najważniejsze koncepty TCAV dla rock](reports/tcav/tcav_top_concepts_classifier_1_rock.png)
+
+Dla klasy `rock` pozytywnie działały krótsze nuty i silniejsze velocity, a negatywnie długie nuty oraz wysoka polifonia.
+
+**Rysunek 6. Najważniejsze koncepty dla klasy `traditional`**
+
+![Najważniejsze koncepty TCAV dla traditional](reports/tcav/tcav_top_concepts_classifier_1_traditional.png)
+
+Klasa `traditional` była najtrudniejsza klasyfikacyjnie, dlatego jej wykres jest szczególnie istotny diagnostycznie. Model wiązał ją głównie z długimi nutami i wyższym rejestrem, mimo że liczba przykładów tej klasy była mała.
 
 ## Zużyte zasoby
 
-Łączny koszt obliczeniowy przeprowadzonych eksperymentów oszacowano na około 75 GPU-godzin. Obliczenia wykonywano na akceleratorze NVIDIA A100, wykorzystując do około 40 GB pamięci GPU.
+Eksperymenty uruchamiano na klastrze z użyciem GPU NVIDIA A100. Najbardziej kosztowne były eksperymenty z MusicBERT oraz TCAV, ponieważ wymagają wielokrotnego przetwarzania długich sekwencji MIDI i obliczania aktywacji dla wielu konceptów, klas i warstw.
+
+Łączny koszt obliczeniowy oszacowano na około **75 GPU-godzin**. Wartość ta obejmuje zarówno udane treningi, jak i eksperymenty przerwane przez limity czasu lub wykorzystane do strojenia konfiguracji.
+
+## Ograniczenia
+
+Najważniejsze ograniczenia projektu:
+
+- główne eksperymenty wykonano na jednym zbiorze, XMIDI,
+- klasa `traditional` jest silnie niedoreprezentowana,
+- pełny fine-tuning MusicBERT jest kosztowny czasowo,
+- modele trenowane od zera osiągnęły niższe wyniki niż MusicBERT i Random Forest,
+- TCAV został ukończony i zaraportowany dla MuSeReNet; analogiczna analiza dla MusicBERT wymaga dodatkowego czasu obliczeniowego,
+- analiza błędów została wykonana głównie na poziomie klas i metryk, a nie jako ręczna analiza pojedynczych utworów.
 
 ## Wnioski
 
-* d
+Projekt pokazał, że klasyfikacja gatunku na danych MIDI jest możliwa, ale trudna ze względu na nierównowagę klas i częściowe nakładanie się cech muzycznych między gatunkami.
+
+Najlepszy wynik klasyfikacyjny uzyskał **MusicBERT full fine-tuning** z macro-F1 równym **0.588**. Potwierdza to, że wstępnie trenowane modele muzyczne są bardziej efektywne niż architektury trenowane od zera na tym zbiorze.
+
+Bardzo mocnym punktem odniesienia okazał się **Random Forest**, który na ręcznie zaprojektowanych cechach osiągnął macro-F1 równe **0.562**. Oznacza to, że cechy symboliczne, takie jak gęstość nut, polifonia, rejestr i długość nut, zawierają dużą część informacji potrzebnej do rozpoznawania gatunku.
+
+Spośród modeli trenowanych od zera lepszy był **MuSeReNet** oparty na piano-rollu. MIDI Transformer miał większe problemy z długimi sekwencjami i klasami mniejszościowymi.
+
+Analiza TCAV umożliwiła przejście od samej skuteczności modelu do interpretacji jego decyzji. Wyniki wskazały między innymi, że MuSeReNet wiązał `pop` z wysoką gęstością nut, `rock` z silniejszą dynamiką i krótszymi nutami, a `classical` z dłuższymi nutami, wyższym rejestrem i niższą gęstością.
+
+Najważniejszy rezultat projektu jest więc dwojaki: zbudowano pipeline do klasyfikacji gatunków MIDI oraz pokazano, że decyzje modelu można analizować przez muzycznie zrozumiałe koncepty, a nie tylko przez abstrakcyjne aktywacje sieci.
+
+## Dalsze prace
+
+Naturalne rozszerzenia projektu obejmują:
+
+- dokończenie i porównanie TCAV dla MusicBERT,
+- dodanie kolejnych datasetów MIDI i porównanie zakodowanych w nich definicji gatunków,
+- dokładniejszą analizę pojedynczych próbek błędnie sklasyfikowanych,
+- augmentację lub oversampling klasy `traditional`,
+- testowanie bogatszych konceptów muzycznych, np. związanych z harmonią, metrum, repetytywnością i konturem melodii,
+- porównanie wyników TCAV między modelem symbolicznym, konwolucyjnym i pretrained encoderem.
