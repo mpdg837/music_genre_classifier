@@ -211,11 +211,11 @@ Jak modele bazowe użyto:
 
 - **Random Forest** - zastosowano jako nieliniowy model bazowy.
 
-- SVM
+- **SVM**
 
-- KNN
+- **KNN**
 
-- 
+- **Linear SVC**
 
 Oprócz modeli klasycznych zaimplementowano również modele neuronowe. Ich zadaniem było sprawdzenie, czy bardziej złożone architektury są w stanie lepiej wykorzystać strukturę danych muzycznych:
 
@@ -316,7 +316,7 @@ W celu lepszego zrozumienia decyzji modelu zastosowano metodę **TCAV** (*Testin
 
 ## Zużyte zasoby
 
-
+Łączny koszt obliczeniowy przeprowadzonych eksperymentów oszacowano na około 75 GPU-godzin. Obliczenia wykonywano na akceleratorze NVIDIA A100, wykorzystując do około 40 GB pamięci GPU.
 
 ## Wnioski
 
