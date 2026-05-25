@@ -93,6 +93,7 @@ def load_model_checkpoint(
         state_dict = checkpoint
         checkpoint = {}
 
+    state_dict = _remap_legacy_classifier_keys(state_dict, model)
     load_result = model.load_state_dict(state_dict, strict=strict)
     if strict and load_result.missing_keys:
         raise RuntimeError(f"Missing checkpoint keys: {load_result.missing_keys}")
@@ -100,6 +101,35 @@ def load_model_checkpoint(
         raise RuntimeError(f"Unexpected checkpoint keys: {load_result.unexpected_keys}")
 
     return checkpoint
+
+
+def _remap_legacy_classifier_keys(
+    state_dict: dict[str, torch.Tensor],
+    model: nn.Module,
+) -> dict[str, torch.Tensor]:
+    model_state = model.state_dict()
+    key_prefixes = {
+        "classifier.0.": "classifier.input_norm.",
+        "classifier.2.": "classifier.linear_0.",
+        "classifier.5.": "classifier.logits.",
+    }
+    remapped = {}
+    changed = False
+
+    for key, value in state_dict.items():
+        new_key = key
+        for old_prefix, new_prefix in key_prefixes.items():
+            if not key.startswith(old_prefix):
+                continue
+
+            candidate = f"{new_prefix}{key.removeprefix(old_prefix)}"
+            if candidate in model_state and model_state[candidate].shape == value.shape:
+                new_key = candidate
+                changed = True
+            break
+        remapped[new_key] = value
+
+    return remapped if changed else state_dict
 
 
 def compute_captum_tcav_score(
@@ -117,8 +147,7 @@ def compute_captum_tcav_score(
     concepts_key = concepts_to_str(experimental_set)
 
     for batch in dataloader:
-        inputs = batch["x"].to(device)
-        batch_size = int(inputs.shape[0])
+        inputs, batch_size = _tcav_inputs_from_batch(batch, device)
         scores = tcav.interpret(
             inputs=inputs,
             experimental_sets=[experimental_set],
@@ -140,6 +169,21 @@ def compute_captum_tcav_score(
         magnitude=weighted_magnitude / n_examples,
         n_examples=n_examples,
     )
+
+
+def _tcav_inputs_from_batch(
+    batch: dict[str, torch.Tensor],
+    device: torch.device,
+) -> tuple[torch.Tensor | tuple[torch.Tensor, torch.Tensor], int]:
+    if "input_ids" in batch:
+        inputs = (
+            batch["input_ids"].to(device),
+            batch["attention_mask"].to(device),
+        )
+        return inputs, int(batch["input_ids"].shape[0])
+
+    inputs = batch["x"].to(device)
+    return inputs, int(inputs.shape[0])
 
 
 def _fit_and_score_classifier(

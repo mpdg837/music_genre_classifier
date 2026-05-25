@@ -91,6 +91,17 @@ train_musicbert:
 	$(UV_RUN) python scripts/train_neural.py model=musicbert
 
 
+## Train frozen MusicBERT with the TCAV-friendly classifier head
+.PHONY: train_musicbert_frozen_head
+train_musicbert_frozen_head:
+	@if [ ! -f "$(VENV_ACTIVATE)" ]; then \
+		echo "Virtual environment not found: $(VENV)"; \
+		echo "Create it with: make create_environment VENV=/path/to/venv"; \
+		exit 1; \
+	fi
+	$(UV_RUN) python scripts/train_neural.py model=musicbert_frozen_head save_weights_path=/net/tscratch/people/plgatarsander/WIMU_DATA/checkpoints/musicbert_frozen_head
+
+
 ## Evaluate frozen MusicBERT embeddings with a logistic-regression head
 .PHONY: eval_musicbert_embeddings
 eval_musicbert_embeddings:
@@ -100,6 +111,41 @@ eval_musicbert_embeddings:
 		exit 1; \
 	fi
 	$(UV_RUN) python scripts/evaluate_musicbert_embeddings.py model=musicbert
+
+
+## Prepare feature-concept manifests for MuseResNet TCAV
+.PHONY: prepare_tcav_concepts
+prepare_tcav_concepts:
+	@if [ ! -f "$(VENV_ACTIVATE)" ]; then \
+		echo "Virtual environment not found: $(VENV)"; \
+		echo "Create it with: make create_environment VENV=/path/to/venv"; \
+		exit 1; \
+	fi
+	$(UV_RUN) python scripts/prepare_tcav_concepts.py
+
+
+## Prepare random-control manifests for MuseResNet TCAV
+.PHONY: prepare_tcav_controls
+prepare_tcav_controls:
+	@if [ ! -f "$(VENV_ACTIVATE)" ]; then \
+		echo "Virtual environment not found: $(VENV)"; \
+		echo "Create it with: make create_environment VENV=/path/to/venv"; \
+		exit 1; \
+	fi
+	$(UV_RUN) python scripts/prepare_tcav_controls.py
+
+
+## Run TCAV for the MuseResNet baseline
+.PHONY: tcav_muserenet
+tcav_muserenet:
+	@if [ ! -f "$(VENV_ACTIVATE)" ]; then \
+		echo "Virtual environment not found: $(VENV)"; \
+		echo "Create it with: make create_environment VENV=/path/to/venv"; \
+		exit 1; \
+	fi
+	$(UV_RUN) python scripts/prepare_tcav_concepts.py
+	$(UV_RUN) python scripts/prepare_tcav_controls.py
+	$(UV_RUN) python scripts/run_tcav_muserenet.py
 
 
 

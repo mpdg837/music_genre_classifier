@@ -1,184 +1,179 @@
 # Music Genre XAI Classifier
 
-<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
-    <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
-</a>
+Brief project README for MIDI genre classification and concept-based interpretability.
 
-Genre classification on symbolic MIDI (XMIDI): classic scikit-learn baselines, **MuSeReNet** (multi-resolution CNN on a piano roll), and a **Transformer** encoder over a padded note sequence. Configuration uses [Hydra](https://hydra.cc/); metrics can be logged with [Weights & Biases](https://wandb.ai/).
+The project trains genre classifiers on symbolic MIDI data from XMIDI and analyzes learned genre cues with TCAV. It includes classic scikit-learn baselines, MuSeReNet, a MIDI Transformer, Hugging Face MusicBERT fine-tuning, and TCAV workflows for interpretability.
 
-## Requirements
+## Current Scope
 
-- Python **3.11** (see `pyproject.toml`)
-- [uv](https://docs.astral.sh/uv/) (or your own venv plus `pip install -e .` for the `midi_xai` package)
+- Dataset: XMIDI, currently 52,421 processed MIDI samples.
+- Task: 6-way genre classification: `classical`, `country`, `jazz`, `pop`, `rock`, `traditional`.
+- Representations:
+  - tabular symbolic features for classic models,
+  - piano-roll for MuSeReNet,
+  - padded note sequences for MIDI Transformer,
+  - REMI token windows for MusicBERT.
+- Interpretability: TCAV workflows for model-level concept analysis.
 
 ## Setup
 
-From the repository root:
+Requirements:
+
+- Python 3.11
+- `uv`
+
+Install dependencies:
 
 ```bash
 make requirements
-# or: uv sync
 ```
 
-Activate the virtual environment (after `make create_environment` / `uv venv`):
+Create a venv manually if needed:
 
 ```bash
+make create_environment
 source .venv/bin/activate
 ```
 
-## Data (XMIDI)
+## Data
 
-1. Paths and download settings live in [`configs/data/xmidi.yaml`](configs/data/xmidi.yaml), e.g. `data/raw/xmidi`, `data/processed/xmidi`, `data/interim/xmidi_labels.csv`.
-2. Prepare raw MIDI into per-piece `.npz` files plus a label CSV:
+Prepare XMIDI into `.npz` note arrays and a label CSV:
 
 ```bash
+make data
+# or
 uv run python scripts/prepare_data.py
 ```
 
-**Neural models do not need a separate “export neural dataset to disk” step.** The same `processed_dir` with `*.npz` files is used for classic models (hand-crafted features in code) and for:
+Configured paths live in:
 
-- **MuSeReNet** — piano roll built on the fly in [`MidiPianoRollDataset`](midi_xai/data/create_dataset.py),
-- **Transformer** — note matrix + padding mask in [`MidiNoteMatrixDataset`](midi_xai/data/create_dataset.py).
+- `configs/data/xmidi.yaml`
 
 ## Training
 
-### Classic baseline
-
-Default config: [`configs/config.yaml`](configs/config.yaml) (e.g. `linear_svc`). Pick another model from `configs/model/classic/`:
+Classic baselines:
 
 ```bash
 uv run python scripts/train_classic.py
 uv run python scripts/train_classic.py model/classic=svc
+uv run python scripts/train_classic.py model/classic=random_forest
 ```
 
-### Neural models
-
-Entry point: [`scripts/train_neural.py`](scripts/train_neural.py); top-level neural config: [`configs/neural_config.yaml`](configs/neural_config.yaml).
-
-**MuSeReNet** (default):
+Neural models:
 
 ```bash
-uv run python scripts/train_neural.py
+make train_muserenet
+make train_transformer
+make train_musicbert
+make train_musicbert_frozen_head
 ```
 
-**Transformer:**
+Equivalent direct commands:
 
 ```bash
+uv run python scripts/train_neural.py model=muserenet
 uv run python scripts/train_neural.py model=transformer
+uv run python scripts/train_neural.py model=musicbert
+uv run python scripts/train_neural.py model=musicbert_frozen_head
 ```
 
-Example Hydra overrides (epochs, batch size):
+Training is configured with Hydra in:
 
-```bash
-uv run python scripts/train_neural.py model=transformer model.training.epochs=50 model.dataset.batch_size=16
-```
+- `configs/neural_config.yaml`
+- `configs/model/*.yaml`
+- `configs/model/classic/*.yaml`
 
-Checkpoints are written under `save_weights_path` (default `checkpoints/`); the filename comes from the model’s `name` field in its YAML (e.g. `muserenet.pt`, `midi_transformer.pt`).
-
-To continue training from a saved neural checkpoint, pass its path with `load_weights_path`:
-
-```bash
-uv run python scripts/train_neural.py model=musicbert load_weights_path=/path/to/musicbert.pt
-```
-
-### GPU / cluster
-
-Training uses `cuda` when PyTorch detects a GPU; otherwise CPU. On a cluster, load a CUDA-capable module / image that matches your PyTorch build and verify with `nvidia-smi`.
-
-### Weights & Biases
-
-Both training scripts call `wandb.init`. For non-interactive or air-gapped runs:
+Weights & Biases logging is supported. Use offline mode when needed:
 
 ```bash
 export WANDB_MODE=offline
-# or after: wandb login
 ```
 
-## Tests
+## TCAV
+
+Prepare concept and random-control manifests:
 
 ```bash
-make test
-# or: uv run pytest
+make prepare_tcav_concepts
+make prepare_tcav_controls
 ```
 
-Tests cover dependency imports, Hydra config loading, and a smoke forward pass for **MuSeReNet** and **Transformer** (instantiated from configs).
+Run MuSeReNet TCAV:
 
-## TCAV result aggregation
+```bash
+make tcav_muserenet
+```
 
-After running MuSeReNet TCAV, aggregate class-level concept effects and plots with:
+Run MusicBERT TCAV directly:
+
+```bash
+uv run python scripts/run_tcav_musicbert.py model=musicbert tcav=musicbert_2614025
+```
+
+Aggregate TCAV summaries:
 
 ```bash
 uv run python scripts/aggregate_tcav_results.py \
-  --summary-csv checkpoints/tcav_scores/tcav_summary.csv \
+  --summary-csv /path/to/tcav_summary.csv \
   --output-dir checkpoints/tcav_scores/aggregated \
-  --figures-dir reports/figures/tcav
+  --figures-dir reports/tcav
 ```
 
-The script writes ranked per-class concept tables plus heatmaps and top-concept bar charts. The reported effect is `mean_sign_count - 0.5`, so positive values support a genre class and negative values oppose it.
+Generated TCAV figures and summaries are stored under:
 
-## Repository layout (short)
+- `reports/tcav/`
+- `reports/tcav_muserenet_summary.md`
 
-| Path | Role |
-|------|------|
-| `midi_xai/data/` | Fetch, preprocess, `create_dataset.py` (PyTorch `Dataset`s + sklearn feature extraction) |
-| `midi_xai/models/classic_model.py` | Classic model wrapper |
-| `midi_xai/models/neural/muserenet.py` | MuSeReNet |
-| `midi_xai/models/neural/transformer.py` | Transformer encoder + classifier head |
-| `configs/` | Hydra: `config.yaml`, `neural_config.yaml`, `data/`, `model/` |
-| `scripts/` | `prepare_data.py`, `train_classic.py`, `train_neural.py`, `test_dependencies.py` |
+## Results Snapshot
 
-## Project organization
+Best validation macro-F1 observed in W&B:
 
-Layout of the repository as used in this codebase (CCDS-inspired; paths may be empty until you run pipelines).
+| Model | Best val macro-F1 |
+|---|---:|
+| MusicBERT full fine-tuning | 0.588 |
+| Random Forest | 0.562 |
+| MuSeReNet, larger run | 0.507 |
+| MuSeReNet baseline | 0.485 |
+| MusicBERT frozen head | 0.456 |
+| SVC | 0.450 |
+| MLP | 0.436 |
+| KNN | 0.431 |
+| Logistic Regression | 0.395 |
+| Linear SVC | 0.389 |
+| MIDI Transformer | 0.387 |
 
+MuSeReNet TCAV summary:
+
+- 132 tests,
+- 20 statistically significant results,
+- significant concepts appeared in `classifier.1`,
+- examples: `pop` with high note density, `rock` with strong velocity / short notes, `classical` with long notes / high pitch register.
+
+## Reports
+
+Useful project write-ups:
+
+- `reports/raport.md` - updated final report.
+- `reports/muserenet_transformer_classification_comparison.md` - detailed MuSeReNet vs Transformer comparison.
+- `reports/tcav_muserenet_summary.md` - TCAV summary for MuSeReNet.
+
+## Repository Layout
+
+| Path | Purpose |
+|---|---|
+| `configs/` | Hydra configs for data, models, training and TCAV |
+| `midi_xai/data/` | MIDI preprocessing, datasets and feature extraction |
+| `midi_xai/models/` | Classic wrapper and neural model definitions |
+| `midi_xai/interpretability/tcav/` | TCAV helpers and reporting logic |
+| `scripts/` | Data prep, training, TCAV and aggregation entry points |
+| `slurm/` | Cluster scripts |
+| `reports/` | Figures, summaries and presentation notes |
+| `notebooks/` | Exploratory analysis |
+
+## Tests and Formatting
+
+```bash
+make test
+make lint
+make format
 ```
-├── Makefile                 # uv sync, lint (ruff), format, tests
-├── pyproject.toml           # package `midi_xai`, dependencies, ruff
-├── uv.lock
-├── README.md
-│
-├── configs/                 # Hydra
-│   ├── config.yaml          # classic training defaults
-│   ├── neural_config.yaml   # neural training defaults (MuSeReNet)
-│   ├── data/
-│   │   ├── default.yaml
-│   │   └── xmidi.yaml       # XMIDI paths + download id
-│   └── model/
-│       ├── muserenet.yaml
-│       ├── transformer.yaml
-│       └── classic/         # linear_svc, svc, mlp, knn, …
-│
-├── scripts/
-│   ├── prepare_data.py      # download + preprocess → npz + labels CSV
-│   ├── train_classic.py     # sklearn baselines
-│   ├── train_neural.py      # MuSeReNet / Transformer
-│   └── test_dependencies.py # pytest: imports, Hydra, model smoke tests
-│
-├── midi_xai/                # installable package (import as `midi_xai`)
-│   ├── __init__.py
-│   ├── data/
-│   │   ├── fetch_dataset.py
-│   │   ├── preprocess.py
-│   │   └── create_dataset.py  # MidiPianoRollDataset, MidiNoteMatrixDataset, sklearn features
-│   └── models/
-│       ├── classic_model.py
-│       └── neural/
-│           ├── muserenet.py
-│           ├── transformer.py
-│           └── __init__.py
-│
-├── data/                    # created at runtime (see configs/data/xmidi.yaml)
-│   ├── raw/xmidi/           # extracted MIDI corpus
-│   ├── processed/xmidi/     # per-piece *.npz note arrays
-│   └── interim/
-│       └── xmidi_labels.csv # sample_id → genre (and metadata columns)
-│
-├── checkpoints/             # saved .pt (neural) / .joblib (classic); gitignored if large
-├── notebooks/               # exploratory notebooks
-├── docs/                    # mkdocs / design docs
-├── reports/                 # figures / write-ups (optional)
-├── outputs/                 # Hydra multirun logs (local runs)
-└── wandb/                   # local W&B run data (if not using cloud-only mode)
-```
-
---------

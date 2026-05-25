@@ -12,6 +12,7 @@ from midi_xai.data.create_dataset import (
     extract_note_features,
     load_note_arrays,
 )
+from midi_xai.data.musicbert_dataset import MidiMusicBertDataset
 
 
 @dataclass(frozen=True)
@@ -57,6 +58,34 @@ class ConceptPianoRollDataset(Dataset):
             random_crop=False,
         )
         return torch.from_numpy(pianoroll).float()
+
+
+class ConceptMusicBertDataset(Dataset):
+    def __init__(
+        self,
+        manifest_csv: Path,
+        dataset: MidiMusicBertDataset,
+    ):
+        self.manifest_csv = manifest_csv
+        self.manifest = pd.read_csv(manifest_csv)
+        if "sample_id" not in self.manifest.columns:
+            raise ValueError(f"Concept manifest must contain a sample_id column: {manifest_csv}")
+
+        self.dataset = dataset
+        self.sample_to_index = {
+            str(row["sample_id"]): index for index, row in self.dataset.metadata.iterrows()
+        }
+
+    def __len__(self) -> int:
+        return len(self.manifest)
+
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        sample_id = str(self.manifest.iloc[idx]["sample_id"])
+        if sample_id not in self.sample_to_index:
+            raise KeyError(f"sample_id={sample_id} from {self.manifest_csv} is missing metadata.")
+
+        item = self.dataset[int(self.sample_to_index[sample_id])]
+        return item["input_ids"], item["attention_mask"]
 
 
 def load_concept_specs(
