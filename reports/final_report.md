@@ -1,7 +1,7 @@
 # Raport finalny - interpretowalność klasyfikatora gatunku na muzyce symbolicznej
 
 Michał Podgajny 311412  
-Miłosz Andryczuk  
+Miłosz Andruczyk 313525
 Aleksander Szymczyk 325239
 
 ## Opis projektu
